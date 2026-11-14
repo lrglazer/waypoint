@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Waypoint — AI Academic Advisor</title>
+<meta name="description" content="Waypoint reads your transcript, checks your school's requirements and builds your path to graduation, semester by semester.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@1&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root{
+  --bg:#06060b;--card:rgba(255,255,255,.04);--line:rgba(255,255,255,.09);--ink:#f4f5f8;--muted:#9a9db0;
+  --a:#7c5cff;--b:#22e4ff;--c:#ff3d7f;--g:#2bff9a;--y:#ffc94a;
+  --holo:linear-gradient(115deg,#7c5cff,#22e4ff,#2bff9a,#ffc94a,#ff3d7f,#7c5cff);
+  --d:'Bricolage Grotesque',system-ui,sans-serif;--t:'Instrument Sans',system-ui,sans-serif;--s:'Instrument Serif',Georgia,serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{overflow-x:hidden}
+body{background:var(--bg);color:var(--ink);font-family:var(--t);line-height:1.55;min-height:100vh;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+.bg{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden}
+.blob{position:absolute;border-radius:50%;filter:blur(100px);opacity:.42;animation:drift 20s ease-in-out infinite alternate}
+.b1{width:560px;height:560px;background:var(--a);top:-180px;left:-160px}
+.b2{width:480px;height:480px;background:var(--b);top:35%;right:-180px;animation-delay:-7s;opacity:.28}
+.b3{width:420px;height:420px;background:var(--c);bottom:-180px;left:25%;animation-delay:-13s;opacity:.25}
+@keyframes drift{to{transform:translate(90px,70px) scale(1.15)}}
+.grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:44px 44px;mask:radial-gradient(ellipse at 50% 20%,#000 20%,transparent 75%)}
+@keyframes foil{to{background-position:300% 0}}
+.foil{background:var(--holo);background-size:300%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:foil 7s linear infinite}
+
+.wrap{max-width:980px;margin:0 auto;padding:0 20px}
+header.top{display:flex;align-items:center;justify-content:space-between;padding:22px 0}
+.logo{display:flex;align-items:center;gap:10px;font-family:var(--d);font-size:1.45rem;font-weight:800;letter-spacing:-.01em;}
+.logo .mark{width:34px;height:34px;border-radius:10px;background:var(--holo);background-size:300%;animation:foil 6s linear infinite;display:grid;place-items:center;color:#06060b;font-size:1.1rem;box-shadow:0 0 24px rgba(124,92,255,.6)}
+.steps{display:flex;gap:6px}
+.steps i{width:28px;height:5px;border-radius:9px;background:rgba(255,255,255,.12);transition:.4s}
+.steps i.on{background:var(--holo);background-size:300%;animation:foil 4s linear infinite;width:42px}
+@media(max-width:480px){.steps i{width:16px}.steps i.on{width:24px}}
+
+.view{display:none;animation:in .6s cubic-bezier(.2,.8,.2,1)}
+.view.on{display:block}
+@keyframes in{from{opacity:0;transform:translateY(26px) scale(.98)}to{opacity:1;transform:none}}
+
+.hero{padding:40px 0 30px;text-align:center}
+.pill{display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border:1px solid var(--line);border-radius:999px;font-size:.8rem;color:var(--muted);background:rgba(255,255,255,.03)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--g);box-shadow:0 0 12px var(--g);animation:pulse 1.6s infinite}
+@keyframes pulse{50%{opacity:.3}}
+h1{font-family:var(--d);font-weight:800;font-size:clamp(3rem,10vw,6rem);line-height:.92;letter-spacing:-.04em;margin:20px 0 16px;letter-spacing:-.01em}
+h1 .o{color:transparent;-webkit-text-stroke:1.5px var(--ink)}
+.lede{color:var(--muted);font-size:1.1rem;max-width:560px;margin:0 auto}
+h2{font-family:var(--d);font-weight:800;letter-spacing:-.03em;font-size:clamp(2rem,6vw,3.1rem);line-height:1;margin-bottom:10px}
+.sub{color:var(--muted);margin-bottom:26px}
+
+.panel{position:relative;border-radius:24px;padding:2px;background:var(--holo);background-size:300%;animation:foil 9s linear infinite;box-shadow:0 30px 80px -40px rgba(124,92,255,.7)}
+.panel>.in{border-radius:22px;background:rgba(10,10,18,.94);padding:30px;backdrop-filter:blur(10px)}
+@media(max-width:600px){.panel>.in{padding:22px}}
+label.f{display:block;font-family:var(--t);font-weight:600;text-transform:uppercase;letter-spacing:.12em;font-size:.78rem;color:var(--y);margin:0 0 8px}
+.field{width:100%;padding:15px 16px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.04);outline:none;transition:.2s;font-size:1rem}
+.field:focus{border-color:var(--b);box-shadow:0 0 0 4px rgba(34,228,255,.12)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px}
+@media(max-width:600px){.row{grid-template-columns:1fr}}
+.mb{margin-bottom:18px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;font-family:var(--d);letter-spacing:-.01em;font-weight:600;font-size:1rem;padding:16px 28px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.05);cursor:pointer;transition:.25s}
+.btn:hover{transform:translateY(-3px);border-color:rgba(255,255,255,.3)}
+.btn.prime{border:0;color:#08080e;background:var(--holo);background-size:300%;animation:foil 6s linear infinite;box-shadow:0 12px 40px -12px rgba(124,92,255,.9)}
+.btn:disabled{opacity:.4;pointer-events:none}
+.actions{display:flex;gap:12px;justify-content:space-between;flex-wrap:wrap;margin-top:26px}
+
+.drop{display:block;border:2px dashed rgba(255,255,255,.18);border-radius:20px;padding:40px 20px;text-align:center;cursor:pointer;transition:.3s;position:relative;overflow:hidden}
+.drop:hover,.drop.over{border-color:var(--b);background:rgba(34,228,255,.05)}
+.drop .ic{font-size:2.6rem;margin-bottom:8px;display:inline-block;animation:bob 2.4s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(-8px)}}
+.drop b{font-family:var(--d);font-size:1.3rem;letter-spacing:-.01em;display:block}
+.drop small{color:var(--muted)}
+.or{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:.8rem;letter-spacing:-.01em;margin:18px 0}
+.or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
+textarea.field{min-height:110px;resize:vertical}
+.filechip{display:none;margin-top:14px;align-items:center;gap:10px;padding:12px 14px;border-radius:12px;background:rgba(43,255,154,.08);border:1px solid rgba(43,255,154,.3);font-size:.9rem}
+
+/* courses table */
+.ctable{display:grid;gap:8px;max-height:380px;overflow:auto;padding-right:4px}
+.crow{display:grid;grid-template-columns:110px 1fr 54px 60px 30px;gap:10px;align-items:center;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.035);border:1px solid var(--line);font-size:.9rem;animation:in .5s both}
+.crow input{background:transparent;border:0;outline:none;width:100%}
+.crow .code{font-family:var(--d);letter-spacing:.04em;color:var(--b)}
+.crow .x{background:none;border:0;color:var(--muted);cursor:pointer;font-size:1.1rem}
+.tag{font-size:.7rem;padding:3px 8px;border-radius:6px;text-transform:uppercase;letter-spacing:.06em;font-weight:600;text-align:center}
+.t-completed{background:rgba(43,255,154,.14);color:var(--g)}
+.t-in_progress{background:rgba(255,201,74,.14);color:var(--y)}
+.t-transfer{background:rgba(34,228,255,.14);color:var(--b)}
+@media(max-width:600px){.crow{grid-template-columns:90px 1fr 60px 26px}.crow .cr{display:none}}
+
+/* questions */
+.q{margin-bottom:24px;animation:in .6s both}
+.q .qt{font-weight:600;font-size:1.08rem;margin-bottom:12px;display:flex;gap:12px}
+.q .qn{font-family:var(--d);color:transparent;-webkit-text-stroke:1px var(--y);font-size:1.4rem;line-height:1}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.chip{padding:10px 16px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.04);cursor:pointer;transition:.2s;font-size:.92rem}
+.chip:hover{border-color:rgba(255,255,255,.35)}
+.chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink);transform:scale(1.04)}
+
+/* loader */
+.loader{text-align:center;padding:60px 10px}
+.orb{width:150px;height:150px;margin:0 auto 30px;border-radius:50%;position:relative;background:conic-gradient(from 0deg,#7c5cff,#22e4ff,#2bff9a,#ffc94a,#ff3d7f,#7c5cff);animation:spin 2.2s linear infinite;filter:drop-shadow(0 0 40px rgba(124,92,255,.7))}
+.orb::after{content:"";position:absolute;inset:10px;border-radius:50%;background:var(--bg)}
+.orb span{position:absolute;inset:0;display:grid;place-items:center;z-index:1;font-size:2.6rem;animation:spin 2.2s linear infinite reverse}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ltxt{font-family:var(--d);font-size:1.5rem;letter-spacing:-.01em;min-height:2em}
+.lsteps{max-width:380px;margin:20px auto 0;text-align:left;display:grid;gap:10px}
+.lsteps div{display:flex;gap:10px;align-items:center;color:var(--muted);transition:.4s;font-size:.95rem}
+.lsteps div.on{color:var(--ink)}
+.lsteps div.done{color:var(--g)}
+.lsteps div::before{content:"○";width:18px}
+.lsteps div.on::before{content:"◉";color:var(--b);animation:pulse 1s infinite}
+.lsteps div.done::before{content:"✓"}
+
+/* dashboard */
+.dhead{display:grid;grid-template-columns:220px 1fr;gap:30px;align-items:center;margin-bottom:30px}
+@media(max-width:700px){.dhead{grid-template-columns:1fr;text-align:center}}
+.ring{position:relative;width:220px;height:220px;margin:0 auto}
+.ring svg{transform:rotate(-90deg)}
+.ring .num{position:absolute;inset:0;display:grid;place-items:center;text-align:center}
+.ring .num b{font-family:var(--d);font-size:3.4rem;line-height:1;display:block}
+.ring .num small{color:var(--muted);font-size:.8rem;letter-spacing:-.01em;}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:18px}
+@media(max-width:700px){.stats{grid-template-columns:repeat(3,1fr)}}
+.stat{padding:16px;border-radius:16px;background:rgba(255,255,255,.04);border:1px solid var(--line);position:relative;overflow:hidden}
+.stat::before{content:"";position:absolute;inset:0 0 auto;height:3px;background:var(--holo);background-size:300%;animation:foil 6s linear infinite}
+.stat b{font-family:var(--d);font-size:1.7rem;display:block;line-height:1.1}
+.stat small{color:var(--muted);font-size:.78rem}
+.tabs{display:flex;gap:6px;padding:5px;border-radius:16px;background:rgba(255,255,255,.04);border:1px solid var(--line);margin-bottom:22px;overflow-x:auto}
+.tab{flex:1;white-space:nowrap;padding:12px 14px;border-radius:12px;border:0;background:none;cursor:pointer;font-family:var(--d);letter-spacing:-.01em;color:var(--muted);transition:.25s}
+.tab.on{background:var(--ink);color:var(--bg)}
+.tp{display:none;animation:in .5s}
+.tp.on{display:block}
+
+.sem-wrap{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+.sem{border-radius:20px;padding:2px;background:linear-gradient(160deg,rgba(124,92,255,.6),rgba(34,228,255,.25),rgba(255,61,127,.4));animation:in .6s both;transition:.3s}
+.sem:hover{transform:translateY(-6px) rotate(-.4deg)}
+.sem .in{border-radius:18px;background:#0c0c15;padding:18px;height:100%}
+.sem h4{font-family:var(--d);font-size:1.25rem;display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
+.sem h4 small{font-family:var(--t);font-size:.75rem;color:var(--muted);letter-spacing:.06em}
+.course{padding:9px 0;border-top:1px solid var(--line);font-size:.9rem}
+.course b{font-family:var(--d);letter-spacing:.04em;color:var(--b);font-weight:500;margin-right:6px}
+.course em{display:block;font-style:normal;color:var(--y);font-size:.78rem;margin-top:2px}
+
+.req{margin-bottom:18px}
+.req h4{font-family:var(--d);letter-spacing:-.01em;font-size:1.1rem;margin-bottom:10px;display:flex;justify-content:space-between}
+.req h4 span{color:var(--muted);font-family:var(--t);font-size:.8rem;text-transform:none;letter-spacing:0}
+.bar{height:6px;border-radius:9px;background:rgba(255,255,255,.08);overflow:hidden;margin-bottom:10px}
+.bar i{display:block;height:100%;width:0;background:var(--holo);background-size:300%;animation:foil 5s linear infinite;transition:width 1.4s cubic-bezier(.2,.8,.2,1)}
+.items{display:flex;flex-wrap:wrap;gap:6px}
+.it{padding:6px 10px;border-radius:8px;font-size:.8rem;border:1px solid var(--line)}
+.it.done{background:rgba(43,255,154,.1);border-color:rgba(43,255,154,.3);color:var(--g)}
+.it.in_progress{background:rgba(255,201,74,.1);border-color:rgba(255,201,74,.3);color:var(--y)}
+.it.remaining{color:var(--muted)}
+
+.warn{display:flex;gap:14px;padding:16px 18px;border-radius:16px;margin-bottom:10px;border:1px solid var(--line);background:rgba(255,255,255,.03);animation:in .5s both}
+.warn .ic{font-size:1.3rem}
+.warn.high{border-color:rgba(255,61,127,.4);background:rgba(255,61,127,.07)}
+.warn.med{border-color:rgba(255,201,74,.4);background:rgba(255,201,74,.06)}
+.warn.info{border-color:rgba(34,228,255,.3);background:rgba(34,228,255,.05)}
+.note{font-size:.82rem;color:var(--muted);padding:12px 14px;border-radius:12px;border:1px dashed var(--line);margin-top:16px}
+
+/* chat */
+.chat{display:flex;flex-direction:column;gap:12px;max-height:440px;overflow:auto;padding:4px;margin-bottom:14px}
+.msg{max-width:85%;padding:13px 16px;border-radius:18px;font-size:.95rem;white-space:pre-wrap;animation:in .4s}
+.msg.u{align-self:flex-end;background:var(--ink);color:var(--bg);border-bottom-right-radius:6px}
+.msg.a{align-self:flex-start;background:rgba(255,255,255,.06);border:1px solid var(--line);border-bottom-left-radius:6px}
+.chatin{display:flex;gap:10px}
+.chatin .field{flex:1}
+.sugs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.summary{white-space:pre-wrap;font-size:.92rem;line-height:1.6;padding:20px;border-radius:16px;background:rgba(255,255,255,.035);border:1px solid var(--line);max-height:460px;overflow:auto}
+.err{display:none;margin-top:14px;padding:12px 14px;border-radius:12px;background:rgba(255,61,127,.1);border:1px solid rgba(255,61,127,.4);font-size:.9rem}
+footer{text-align:center;color:#55576a;font-size:.78rem;padding:50px 0 40px;font-family:var(--d);letter-spacing:.02em;}
+.confetti{position:fixed;top:-20px;width:10px;height:14px;z-index:99;pointer-events:none;animation:fall linear forwards}
+@keyframes fall{to{transform:translateY(110vh) rotate(720deg)}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+.serif{font-family:var(--s);font-style:italic;font-weight:400;letter-spacing:0}
+h1 .serif,h2 .serif{padding-right:.06em}
+.btn{font-weight:700}
+
+/* degree map */
+.mopts{display:grid;gap:18px;margin-bottom:6px}
+.mopt .ml{font-family:var(--t);font-weight:600;font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;color:var(--y);margin-bottom:8px}
+.mapbox{margin-top:22px;border-radius:20px;border:1px solid var(--line);background:rgba(255,255,255,.02);overflow:auto;max-height:78vh;display:none;animation:in .6s}
+.mapbox svg{display:block}
+.mapbox .edge{stroke-dasharray:6 900;animation:draw 1.6s ease forwards}
+@keyframes draw{to{stroke-dasharray:900 0}}
+.mapbox .node{opacity:0;animation:pop .5s cubic-bezier(.2,.9,.3,1.3) forwards}
+@keyframes pop{from{opacity:0;transform:translateY(10px) scale(.92)}to{opacity:1;transform:none}}
+.maptools{display:none;gap:10px;flex-wrap:wrap;margin-top:14px}
+.mhint{color:var(--muted);font-size:.85rem;margin-top:10px}
+
+.feats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:22px}
+@media(max-width:760px){.feats{grid-template-columns:repeat(2,1fr)}}
+.feat{padding:18px 16px;border-radius:18px;background:rgba(255,255,255,.035);border:1px solid var(--line);opacity:0;animation:in .7s var(--d) forwards,float 5s calc(var(--d)*4) ease-in-out infinite;transition:border-color .3s}
+.feat:hover{border-color:rgba(255,255,255,.3)}
+@keyframes float{50%{transform:translateY(-6px)}}
+.feat span{font-size:1.6rem;display:block;margin-bottom:8px}
+.feat b{display:block;font-family:var(--d);font-size:1.05rem;letter-spacing:-.01em}
+.feat small{color:var(--muted);font-size:.82rem}
+.demo-tag{display:none;margin-left:8px;padding:3px 9px;border-radius:7px;background:var(--y);color:#111;font-size:.72rem;font-weight:700;vertical-align:middle}
+.sem{transform-style:preserve-3d}
+
+.catbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 16px;border-radius:14px;background:rgba(124,92,255,.08);border:1px solid rgba(124,92,255,.35);margin-bottom:18px;font-size:.92rem}
+.eqh{font-family:var(--d);font-size:1.25rem;margin:26px 0 12px;display:flex;align-items:center;gap:10px}
+.eq{display:grid;grid-template-columns:1fr 34px 1fr;gap:10px;align-items:center;padding:14px;border-radius:14px;background:rgba(255,255,255,.035);border:1px solid var(--line);margin-bottom:8px;animation:in .5s both}
+.eq .arr{text-align:center;font-size:1.2rem;color:var(--b)}
+.eq b{font-family:var(--d);color:var(--b);font-weight:600}
+.eq small{display:block;color:var(--muted);font-size:.8rem;margin-top:3px}
+.eq .chk{grid-column:1/-1;font-size:.78rem;color:var(--y)}
+@media(max-width:560px){.eq{grid-template-columns:1fr}.eq .arr{transform:rotate(90deg)}}
+
+.pbar{display:none;position:sticky;top:8px;z-index:5;margin:20px 0 6px;padding:12px 16px;border-radius:14px;background:rgba(10,10,18,.9);backdrop-filter:blur(10px);border:1px solid var(--line);align-items:center;gap:14px}
+.pbar .bar{flex:1;margin:0}
+.pbar input{flex:1.2;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.04);outline:none;min-width:0}
+.slot{margin-top:18px;border-radius:20px;padding:18px;background:rgba(255,255,255,.03);border:1px solid var(--line);animation:in .5s both}
+.slot.done{border-color:rgba(43,255,154,.35)}
+.slot h4{font-family:var(--d);font-size:1.2rem;display:flex;justify-content:space-between;gap:10px;align-items:baseline;margin-bottom:4px}
+.slot h4 small{font-family:var(--t);color:var(--muted);font-size:.8rem;white-space:nowrap}
+.slot .sm{color:var(--muted);font-size:.85rem;margin-bottom:12px}
+.opts{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.opt{position:relative;text-align:left;padding:14px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.035);cursor:pointer;transition:.25s}
+.opt:hover{transform:translateY(-3px);border-color:rgba(255,255,255,.3)}
+.opt.on{border-color:transparent;background:linear-gradient(#0d0d16,#0d0d16) padding-box,var(--holo) border-box;border:2px solid transparent;background-size:auto,300%;animation:foil 6s linear infinite;box-shadow:0 10px 30px -14px rgba(124,92,255,.9)}
+.opt.on::after{content:"✓";position:absolute;top:10px;right:12px;width:24px;height:24px;border-radius:50%;background:var(--g);color:#06060b;display:grid;place-items:center;font-weight:800;font-size:.8rem}
+.opt.blocked{opacity:.55}
+.opt b{font-family:var(--d);color:var(--b);font-weight:600;display:block}
+.opt .tt{font-weight:600;font-size:.95rem;margin:2px 0 6px;padding-right:24px}
+.opt p{color:var(--muted);font-size:.82rem;line-height:1.45}
+.opt .tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.opt .tags span{font-size:.7rem;padding:3px 7px;border-radius:6px;background:rgba(255,255,255,.07);color:#cfd1e0}
+.opt .tags span.out{background:rgba(255,61,127,.15);color:#ff8fb3}
+.opt .tags span.pr{background:rgba(255,201,74,.14);color:var(--y)}
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(120px);padding:14px 20px;border-radius:14px;background:var(--ink);color:var(--bg);font-weight:600;z-index:100;transition:.4s cubic-bezier(.2,.9,.3,1.3);box-shadow:0 20px 50px -10px rgba(0,0,0,.6)}
+.toast.on{transform:translateX(-50%) translateY(0)}
+.mapbox .node.pickable{cursor:pointer}
+
+.wstats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:10px}
+@media(max-width:700px){.wstats{grid-template-columns:1fr}}
+.wst{padding:24px 20px;border-radius:20px;background:rgba(255,255,255,.035);border:1px solid var(--line);position:relative;overflow:hidden;animation:in .7s both}
+.wst:nth-child(2){animation-delay:.12s}.wst:nth-child(3){animation-delay:.24s}
+.wst::before{content:"";position:absolute;inset:0 0 auto;height:3px;background:var(--holo);background-size:300%;animation:foil 6s linear infinite}
+.wst b{font-family:var(--d);font-weight:800;font-size:3.2rem;line-height:1;display:block;letter-spacing:-.03em}
+.wst small{color:var(--muted);font-size:.9rem}
+.story p{font-size:1.05rem;line-height:1.7;color:#d6d8e4;margin-bottom:14px;max-width:680px}
+.kick{font-weight:600;font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;color:var(--y);margin-bottom:10px}
+.vs{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:22px}
+@media(max-width:700px){.vs{grid-template-columns:1fr}}
+.vcol{border-radius:20px;padding:22px;border:1px solid var(--line);background:rgba(255,255,255,.03)}
+.vcol h3{font-family:var(--d);font-size:1.4rem;margin-bottom:12px}
+.vcol div{padding:10px 0;border-top:1px solid var(--line);font-size:.95rem}
+.vcol.bad{opacity:.85}.vcol.bad h3{color:#ff8fb3}
+.vcol.good{border-color:rgba(43,255,154,.35);background:rgba(43,255,154,.04);box-shadow:0 20px 60px -30px rgba(43,255,154,.5)}.vcol.good h3{color:var(--g)}
+.src{color:#6e7186;font-size:.78rem;margin-top:22px;line-height:1.6}.src a{color:#9a9db0}
+
+/* mascot */
+.botwrap{position:relative;width:170px;margin:0 auto 6px}
+.botwrap.sm{width:150px;margin:0}
+.bot{width:100%;height:auto;overflow:visible}
+.botfloat{animation:bfloat 3.2s ease-in-out infinite}
+@keyframes bfloat{50%{transform:translateY(-10px)}}
+.shadow{animation:bshadow 3.2s ease-in-out infinite;transform-origin:110px 214px}
+@keyframes bshadow{50%{transform:scaleX(.82);opacity:.2}}
+.eyes{animation:blink 4.2s infinite;transform-origin:110px 88px}
+@keyframes blink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.1)}}
+.ant{animation:pulse 1.4s infinite}
+.wave{animation:wave 1.6s ease-in-out infinite;transform-origin:146px 156px}
+@keyframes wave{0%,100%{transform:rotate(0)}50%{transform:rotate(-14deg)}}
+.tassel{animation:tassel 2.4s ease-in-out infinite;transform-origin:166px 44px}
+@keyframes tassel{50%{transform:rotate(14deg)}}
+.pflag{animation:flag .9s ease-in-out infinite;transform-origin:176px 86px}
+@keyframes flag{50%{transform:skewY(6deg) scaleX(.92)}}
+.heart{animation:pulse 1.1s infinite}
+.bubble{position:absolute;top:8px;right:-62px;padding:9px 14px;border-radius:16px 16px 16px 4px;background:var(--ink);color:var(--bg);font-weight:600;font-size:.88rem;white-space:nowrap;animation:bub 4s ease-in-out infinite;box-shadow:0 10px 30px -10px rgba(0,0,0,.6)}
+@keyframes bub{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-6px) rotate(2deg)}}
+@media(max-width:480px){.bubble{right:-40px;font-size:.78rem}}
+.schoolhero{display:flex;align-items:center;gap:6px;padding-top:24px;animation:in .7s}
+.banner{flex:1;position:relative;padding:22px 24px;border-radius:22px;background:linear-gradient(120deg,var(--pc1,#7c5cff),var(--pc2,#22e4ff));color:#fff;overflow:hidden;box-shadow:0 20px 60px -25px var(--pc1,#7c5cff);transform-origin:left center;animation:unfurl .9s cubic-bezier(.2,.9,.3,1.2) .2s both}
+@keyframes unfurl{from{transform:scaleX(0) rotate(-3deg);opacity:0}to{transform:none;opacity:1}}
+.banner::after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.35) 50%,transparent 70%);background-size:250% 100%;animation:shine 3s ease-in-out infinite}
+@keyframes shine{from{background-position:150% 0}to{background-position:-100% 0}}
+.bn-top{font-size:.78rem;letter-spacing:.16em;text-transform:uppercase;opacity:.85;font-weight:600}
+.bn-name{font-family:var(--d);font-weight:800;font-size:clamp(1.6rem,5.5vw,2.6rem);line-height:1.05;letter-spacing:-.02em;text-shadow:0 3px 0 rgba(0,0,0,.18)}
+.bn-name span{display:inline-block;animation:hop .6s cubic-bezier(.2,.9,.3,1.5) both}
+@keyframes hop{from{transform:translateY(24px) scale(.6);opacity:0}to{transform:none;opacity:1}}
+.bn-sub{font-size:.9rem;opacity:.92;margin-top:4px;min-height:1.2em}
+@media(max-width:520px){.schoolhero{flex-direction:column}.botwrap.sm{width:120px}}
+
+/* drag & drop plan */
+.course{display:flex;align-items:flex-start;gap:8px}
+.course .cbody{flex:1}
+.grip{cursor:grab;touch-action:none;user-select:none;color:#6b6e85;font-size:1.05rem;line-height:1.2;padding:0 2px}
+.grip:hover{color:var(--ink)}
+.dragghost{position:fixed;z-index:200;pointer-events:none;padding:10px 14px;border-radius:12px;background:var(--ink);color:var(--bg);font-weight:600;font-size:.9rem;box-shadow:0 20px 50px -10px rgba(0,0,0,.7);transform:translate(-50%,-50%) rotate(-3deg)}
+.sem.over{transform:scale(1.03)}
+.sem.over .in{background:#141428;outline:2px dashed var(--b);outline-offset:-6px}
+.sem.bad .in{outline-color:var(--c)}
+.course.dragging{opacity:.3}
+.shake{animation:shake .45s}
+@keyframes shake{20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+.course.just{animation:land .7s}
+@keyframes land{0%{background:rgba(43,255,154,.35)}100%{background:transparent}}
+.toast.bad{background:#ff3d7f;color:#fff}
+.dhint{color:var(--muted);font-size:.85rem;margin:-6px 0 14px}
+
+/* community college */
+.pol{margin-top:20px;border-radius:20px;padding:20px;border:1px solid var(--line);background:rgba(255,255,255,.03);animation:in .5s}
+.pol.no{border-color:rgba(255,61,127,.45);background:rgba(255,61,127,.06)}
+.pol.ok{border-color:rgba(43,255,154,.35);background:rgba(43,255,154,.04)}
+.pol h3{font-family:var(--d);font-size:1.4rem;margin-bottom:6px}
+.pol ul{margin:10px 0 0 18px;color:#d6d8e4;font-size:.93rem;line-height:1.6}
+.pol .srcs{margin-top:10px;font-size:.78rem;color:#6e7186}.pol .srcs a{color:#9a9db0}
+.resid{margin-top:16px;padding:16px 18px;border-radius:16px;border:1px solid var(--line);background:rgba(255,255,255,.03)}
+.resid .bar{height:10px;margin:8px 0 6px}
+.ccrow{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;padding:14px 16px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.03);margin-top:8px;animation:in .45s both}
+.ccrow.no{opacity:.6}
+.ccrow b{font-family:var(--d);color:var(--b);font-weight:600}
+.ccrow small{display:block;color:var(--muted);font-size:.82rem;margin-top:2px}
+.ccrow .eq2{color:var(--g);font-size:.85rem;margin-top:3px}
+.tog{padding:9px 14px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.05);cursor:pointer;font-weight:600;font-size:.82rem;white-space:nowrap;transition:.2s}
+.tog.on{background:var(--g);color:#06060b;border-color:var(--g)}
+.ccbadge{display:inline-block;margin-left:6px;padding:2px 7px;border-radius:6px;background:rgba(43,255,154,.15);color:var(--g);font-size:.7rem;font-weight:700;vertical-align:middle}
+</style>
+</head>
+<body>
+<div class="bg"><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div><div class="grid"></div></div>
+
+<div class="wrap">
+<header class="top"><style>.whyl{margin-left:auto;margin-right:16px;color:var(--muted);font-size:.88rem;text-decoration:none;border-bottom:1px dashed rgba(255,255,255,.25)}.whyl:hover{color:var(--ink)}@media(max-width:480px){.whyl{font-size:.78rem;margin-right:10px}}</style>
+  <div class="logo"><div class="mark">◆</div>waypoint</div>
+  <a href="#" id="whylink" class="whyl">Why I built this</a>
+  <div class="steps" id="steps"><i class="on"></i><i></i><i></i><i></i></div>
+</header>
+
+<!-- STEP 1 -->
+<section class="view on" id="v1">
+  <div class="hero">
+    <div class="botwrap"><svg class="bot" viewBox="0 0 220 230" aria-label="Way, the Waypoint advisor bot">
+  <defs>
+    <linearGradient id="bodyg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4f2ff"/><stop offset="1" stop-color="#c9c3f5"/></linearGradient>
+    <linearGradient id="capg" x1="0" x2="1"><stop offset="0" stop-color="#7c5cff"/><stop offset="1" stop-color="#22e4ff"/></linearGradient>
+    <radialGradient id="glow"><stop offset="0" stop-color="#7c5cff" stop-opacity=".55"/><stop offset="1" stop-color="#7c5cff" stop-opacity="0"/></radialGradient>
+  </defs>
+  <ellipse cx="110" cy="214" rx="56" ry="9" fill="#000" opacity=".35" class="shadow"/>
+  <g class="botfloat">
+    <circle cx="110" cy="110" r="100" fill="url(#glow)"/>
+    <!-- antenna -->
+    <line x1="110" y1="44" x2="110" y2="26" stroke="#c9c3f5" stroke-width="4" stroke-linecap="round"/>
+    <circle class="ant" cx="110" cy="22" r="7" fill="#2bff9a"/>
+    <!-- head -->
+    <rect x="52" y="44" width="116" height="92" rx="40" fill="url(#bodyg)"/>
+    <rect x="66" y="62" width="88" height="56" rx="26" fill="#14122a"/>
+    <g class="eyes"><ellipse cx="92" cy="88" rx="9" ry="11" fill="#22e4ff"/><ellipse cx="128" cy="88" rx="9" ry="11" fill="#22e4ff"/>
+      <circle cx="95" cy="84" r="3" fill="#fff"/><circle cx="131" cy="84" r="3" fill="#fff"/></g>
+    <path d="M98 104 Q110 113 122 104" stroke="#22e4ff" stroke-width="4" fill="none" stroke-linecap="round"/>
+    <circle cx="74" cy="104" r="6" fill="#ff3d7f" opacity=".55"/><circle cx="146" cy="104" r="6" fill="#ff3d7f" opacity=".55"/>
+    <!-- grad cap -->
+    <g class="cap"><path d="M110 22 L168 44 L110 62 L52 44 Z" fill="url(#capg)"/><rect x="84" y="50" width="52" height="14" rx="4" fill="#5b3fe0"/>
+      <path class="tassel" d="M166 44 L166 70" stroke="#ffc94a" stroke-width="3" stroke-linecap="round"/><circle class="tassel" cx="166" cy="72" r="4" fill="#ffc94a"/></g>
+    <!-- body -->
+    <rect x="72" y="138" width="76" height="58" rx="24" fill="url(#bodyg)"/>
+    <rect x="96" y="152" width="28" height="20" rx="6" fill="#14122a"/><circle cx="110" cy="162" r="5" fill="#ff3d7f" class="heart"/>
+    <!-- left arm holding clipboard -->
+    <g><path d="M74 156 Q54 166 58 184" stroke="#c9c3f5" stroke-width="10" fill="none" stroke-linecap="round"/>
+      <rect x="40" y="172" width="30" height="36" rx="5" fill="#ffc94a" transform="rotate(-10 55 190)"/><rect x="47" y="182" width="16" height="3" rx="1.5" fill="#7a5a00" transform="rotate(-10 55 190)"/><rect x="47" y="190" width="12" height="3" rx="1.5" fill="#7a5a00" transform="rotate(-10 55 190)"/></g>
+    <!-- right arm: waves pennant -->
+    <g class="wave">
+      <path d="M146 156 Q170 146 176 124" stroke="#c9c3f5" stroke-width="10" fill="none" stroke-linecap="round"/>
+      <g class="pennant" style="display:none"><line x1="176" y1="126" x2="176" y2="70" stroke="#e8e6f5" stroke-width="3"/>
+        <path class="pflag" d="M176 72 L216 86 L176 100 Z" fill="var(--pc1,#7c5cff)" stroke="var(--pc2,#22e4ff)" stroke-width="2"/></g>
+    </g>
+  </g>
+</svg><div class="bubble" id="bubble">Hi! I'm Way 👋</div></div>
+    <span class="pill"><span class="dot"></span>AI academic advisor · any school</span>
+    <h1>Your degree,<br><span class="foil serif">mapped.</span></h1>
+    <p class="lede">Tell Waypoint your school and major, drop in your transcript, and answer a few questions. It works out your requirements and builds your path to graduation.</p>
+  </div>
+  <div class="panel"><div class="in">
+    <div class="row">
+      <div><label class="f">School</label><input class="field" id="school" placeholder="e.g. UT Dallas" autocomplete="off"></div>
+      <div><label class="f">Major</label><input class="field" id="major" placeholder="e.g. Mechanical Engineering" autocomplete="off"></div>
+    </div>
+    <div class="row">
+      <div><label class="f">Minor or second major <span style="color:var(--muted);text-transform:none;letter-spacing:0">(optional)</span></label><input class="field" id="minor" placeholder="None"></div>
+      <div><label class="f">Semester you're in now <span style="color:var(--muted);text-transform:none;letter-spacing:0">(not graduation)</span></label><input class="field" id="term" placeholder="e.g. Fall 2026"></div>
+    </div>
+    <div class="mb"><label class="f">Catalog year <span style="color:var(--muted);text-transform:none;letter-spacing:0">(the degree plan you're under, usually the year you started)</span></label>
+      <input class="field" id="cat" placeholder="e.g. 2025–2026 · leave blank if you're not sure"></div>
+    <div class="actions"><button class="btn" id="demo">▶ Try a demo</button><button class="btn prime" id="go1">Next: transcript →</button></div>
+  </div></div>
+  <div class="feats">
+    <div class="feat" style="--d:0s"><span>📄</span><b>Reads your transcript</b><small>PDF, screenshot or text</small></div>
+    <div class="feat" style="--d:.15s"><span>🧭</span><b>Asks about your goals</b><small>Grad date, summers, internships</small></div>
+    <div class="feat" style="--d:.3s"><span>🗓️</span><b>Plans every semester</b><small>In prerequisite order</small></div>
+    <div class="feat" style="--d:.45s"><span>🗺️</span><b>Draws your degree map</b><small>Printable flowchart</small></div>
+  </div>
+</section>
+
+
+<!-- WHY -->
+<section class="view" id="vWhy">
+  <div class="hero" style="padding-bottom:10px">
+    <span class="pill"><span class="dot" style="background:var(--c);box-shadow:0 0 12px var(--c)"></span>The problem</span>
+    <h1>Your advisor<br>has <span class="foil serif">300</span> other students.</h1>
+    <p class="lede">Advisors aren't the villains. They're buried. But when your graduation depends on one overloaded person answering one email, that's a broken system.</p>
+  </div>
+  <div class="wstats">
+    <div class="wst"><b data-n="296">0</b><small>students per full-time advisor, the national median</small></div>
+    <div class="wst"><b data-n="65" data-s="%">0</b><small>of students say their advisor actually helped them build an academic plan</small></div>
+    <div class="wst"><b data-n="1000" data-p="up to ">0</b><small>students per advisor at some schools</small></div>
+  </div>
+  <div class="panel" style="margin-top:28px"><div class="in story">
+    <div class="kick">My story</div>
+    <h2>I couldn't get a <span class="foil serif">straight answer.</span></h2>
+    <p>As an engineering student, my whole schedule hangs on prerequisites. Miss one class in the right semester and you can lose a year. So I needed my advisor: to clear holds, confirm my transfer credit counted, and check that my plan actually worked.</p>
+    <p>What I got was emails that went unanswered, follow-ups that never happened, and holds that sat on my account while registration got closer. I started keeping track of every time I didn't hear back. Eventually I had to take it above my advisor just to get things moving.</p>
+    <p>The frustrating part: most of what I needed wasn't a judgment call. It was reading a catalog, checking a transcript, and doing the prerequisite math. A computer can do that in seconds. That's when I decided to build it.</p>
+  </div></div>
+  <div class="vs">
+    <div class="vcol bad"><h3>The usual way</h3>
+      <div>⏳ Wait days or weeks for a reply</div><div>📅 One rushed 15-minute meeting a semester</div><div>🤷 "Check the catalog" with no help reading it</div><div>🔁 Renumbered classes and transfer credit slip through</div><div>😬 Find out about a missed prereq too late</div></div>
+    <div class="vcol good"><h3>With Waypoint</h3>
+      <div>⚡ A full plan in under a minute</div><div>💬 Ask questions at 2 a.m. and get answers</div><div>🗺️ Every requirement mapped and checked</div><div>🔁 Equivalences and catalog changes flagged</div><div>🚨 Problems caught semesters ahead</div></div>
+  </div>
+  <div class="panel" style="margin-top:22px"><div class="in story">
+    <div class="kick">The point</div>
+    <h2>Not replacing advisors. <span class="foil serif">Freeing them.</span></h2>
+    <p>Let AI handle the routine work: degree audits, prerequisite checks, catalog questions, simple holds. Then advisors can spend their time on the conversations that actually need a human. Waypoint even writes your meeting notes so that one short meeting counts.</p>
+    <div class="actions" style="justify-content:flex-start"><button class="btn prime" id="whygo">Build my plan →</button><button class="btn" id="whydemo">▶ See the demo</button></div>
+  </div></div>
+  <p class="src">Sources: <a href="https://nacada.ksu.edu/Resources/Clearinghouse/FAQ.aspx">NACADA 2011 National Survey</a> (median 296 advisees per full-time advisor) · <a href="https://edsurge.com/news/2018-02-13-report-advising-attendance-is-up-but-more-in-depth-student-support-is-still-needed">EdSurge on Tyton Partners' 2018 report</a> (65% say their advisor helped build a plan) · <a href="https://www.civitaslearning.com/?p=10479">Civitas Learning</a> (caseloads up to 1,000).</p>
+</section>
+
+<!-- STEP 2 -->
+<section class="view" id="v2">
+  <div class="schoolhero" id="schoolhero"><div class="botwrap sm"><svg class="bot" viewBox="0 0 220 230" aria-label="Way, the Waypoint advisor bot">
+  <defs>
+    <linearGradient id="bodyg2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4f2ff"/><stop offset="1" stop-color="#c9c3f5"/></linearGradient>
+    <linearGradient id="capg2" x1="0" x2="1"><stop offset="0" stop-color="#7c5cff"/><stop offset="1" stop-color="#22e4ff"/></linearGradient>
+    <radialGradient id="glow2"><stop offset="0" stop-color="#7c5cff" stop-opacity=".55"/><stop offset="1" stop-color="#7c5cff" stop-opacity="0"/></radialGradient>
+  </defs>
+  <ellipse cx="110" cy="214" rx="56" ry="9" fill="#000" opacity=".35" class="shadow"/>
+  <g class="botfloat">
+    <circle cx="110" cy="110" r="100" fill="url(#glow2)"/>
+    <!-- antenna -->
+    <line x1="110" y1="44" x2="110" y2="26" stroke="#c9c3f5" stroke-width="4" stroke-linecap="round"/>
+    <circle class="ant" cx="110" cy="22" r="7" fill="#2bff9a"/>
+    <!-- head -->
+    <rect x="52" y="44" width="116" height="92" rx="40" fill="url(#bodyg2)"/>
+    <rect x="66" y="62" width="88" height="56" rx="26" fill="#14122a"/>
+    <g class="eyes"><ellipse cx="92" cy="88" rx="9" ry="11" fill="#22e4ff"/><ellipse cx="128" cy="88" rx="9" ry="11" fill="#22e4ff"/>
+      <circle cx="95" cy="84" r="3" fill="#fff"/><circle cx="131" cy="84" r="3" fill="#fff"/></g>
+    <path d="M98 104 Q110 113 122 104" stroke="#22e4ff" stroke-width="4" fill="none" stroke-linecap="round"/>
+    <circle cx="74" cy="104" r="6" fill="#ff3d7f" opacity=".55"/><circle cx="146" cy="104" r="6" fill="#ff3d7f" opacity=".55"/>
+    <!-- grad cap -->
+    <g class="cap"><path d="M110 22 L168 44 L110 62 L52 44 Z" fill="url(#capg2)"/><rect x="84" y="50" width="52" height="14" rx="4" fill="#5b3fe0"/>
+      <path class="tassel" d="M166 44 L166 70" stroke="#ffc94a" stroke-width="3" stroke-linecap="round"/><circle class="tassel" cx="166" cy="72" r="4" fill="#ffc94a"/></g>
+    <!-- body -->
+    <rect x="72" y="138" width="76" height="58" rx="24" fill="url(#bodyg2)"/>
+    <rect x="96" y="152" width="28" height="20" rx="6" fill="#14122a"/><circle cx="110" cy="162" r="5" fill="#ff3d7f" class="heart"/>
+    <!-- left arm holding clipboard -->
+    <g><path d="M74 156 Q54 166 58 184" stroke="#c9c3f5" stroke-width="10" fill="none" stroke-linecap="round"/>
+      <rect x="40" y="172" width="30" height="36" rx="5" fill="#ffc94a" transform="rotate(-10 55 190)"/><rect x="47" y="182" width="16" height="3" rx="1.5" fill="#7a5a00" transform="rotate(-10 55 190)"/><rect x="47" y="190" width="12" height="3" rx="1.5" fill="#7a5a00" transform="rotate(-10 55 190)"/></g>
+    <!-- right arm: waves pennant -->
+    <g class="wave">
+      <path d="M146 156 Q170 146 176 124" stroke="#c9c3f5" stroke-width="10" fill="none" stroke-linecap="round"/>
+      <g class="pennant"><line x1="176" y1="126" x2="176" y2="70" stroke="#e8e6f5" stroke-width="3"/>
+        <path class="pflag" d="M176 72 L216 86 L176 100 Z" fill="var(--pc1,#7c5cff)" stroke="var(--pc2,#22e4ff)" stroke-width="2"/></g>
+    </g>
+  </g>
+</svg></div>
+    <div class="banner" id="banner"><div class="bn-top">Welcome to</div><div class="bn-name" id="bnName">Your school</div><div class="bn-sub" id="bnSub"></div></div></div>
+  <div style="padding:10px 0 10px"><h2>Drop your <span class="foil serif">transcript</span></h2><p class="sub">An unofficial transcript or degree audit works best: PDF, screenshot, or pasted text.</p></div>
+  <div class="panel"><div class="in">
+    <div id="upArea">
+      <label class="drop" id="drop">
+        <input type="file" id="file" accept=".pdf,image/*" hidden>
+        <div class="ic">📄</div><b>Tap or drop your transcript</b><small>PDF, PNG or JPG</small>
+      </label>
+      <div class="filechip" id="chip"></div>
+      <div class="or">or paste it</div>
+      <textarea class="field" id="paste" placeholder="Paste your course list or transcript text here..."></textarea>
+      <div class="actions"><button class="btn" data-back="1">← Back</button><button class="btn prime" id="go2">Read my transcript</button></div>
+    </div>
+    <div id="courseArea" style="display:none">
+      <p class="sub" style="margin-bottom:14px">Here's what I found. Fix anything that's off before we continue.</p>
+      <div class="ctable" id="ctable"></div>
+      <button class="btn" id="addc" style="margin-top:12px;padding:10px 16px;font-size:.85rem">+ Add a class</button>
+      <div class="actions"><button class="btn" id="reup">← Re-upload</button><button class="btn prime" id="go3">Looks right →</button></div>
+    </div>
+    <div class="err" id="err2"></div>
+  </div></div>
+</section>
+
+<!-- STEP 3 -->
+<section class="view" id="v3">
+  <div style="padding:30px 0 10px"><h2>Your <span class="foil serif">game plan</span></h2><p class="sub">A few questions so the plan fits where you're headed.</p></div>
+  <div class="panel"><div class="in">
+    <div id="qs"></div>
+    <div class="actions"><button class="btn" data-back="2">← Back</button><button class="btn prime" id="go4">Build my plan ✦</button></div>
+    <div class="err" id="err3"></div>
+  </div></div>
+</section>
+
+<!-- LOADER -->
+<section class="view" id="vL">
+  <div class="loader">
+    <div class="orb"><span id="lic">🎓</span></div>
+    <div class="ltxt" id="ltxt">Working...</div>
+    <div class="lsteps" id="lsteps"></div>
+  </div>
+</section>
+
+<!-- STEP 4 DASHBOARD -->
+<section class="view" id="v4">
+  <div class="dhead" style="padding-top:20px">
+    <div class="ring">
+      <svg width="220" height="220" viewBox="0 0 220 220">
+        <defs><linearGradient id="rg" x1="0" x2="1"><stop offset="0" stop-color="#7c5cff"/><stop offset=".5" stop-color="#22e4ff"/><stop offset="1" stop-color="#2bff9a"/></linearGradient></defs>
+        <circle cx="110" cy="110" r="94" stroke="rgba(255,255,255,.08)" stroke-width="16" fill="none"/>
+        <circle id="arc" cx="110" cy="110" r="94" stroke="url(#rg)" stroke-width="16" fill="none" stroke-linecap="round" stroke-dasharray="590.6" stroke-dashoffset="590.6" style="transition:stroke-dashoffset 1.8s cubic-bezier(.2,.8,.2,1);filter:drop-shadow(0 0 10px rgba(34,228,255,.6))"/>
+      </svg>
+      <div class="num"><div><b id="pct">0%</b><small>to degree</small></div></div>
+    </div>
+    <div>
+      <span class="demo-tag" id="demotag">DEMO</span><span class="pill" id="dpill"><span class="dot"></span>Plan ready</span>
+      <h2 style="margin-top:14px" id="dtitle">Your path</h2>
+      <p class="sub" id="dsum" style="margin-bottom:0"></p>
+      <div class="stats">
+        <div class="stat"><b id="sDone">0</b><small>credits done</small></div>
+        <div class="stat"><b id="sLeft">0</b><small>credits left</small></div>
+        <div class="stat"><b id="sGrad">—</b><small>projected grad</small></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab on" data-tab="plan">Plan</button>
+    <button class="tab" data-tab="pick">Choose classes</button>
+    <button class="tab" data-tab="cc">Community college</button>
+    <button class="tab" data-tab="map">Degree map</button>
+    <button class="tab" data-tab="reqs">Requirements</button>
+    <button class="tab" data-tab="flags">Heads up</button>
+    <button class="tab" data-tab="ask">Ask advisor</button>
+    <button class="tab" data-tab="meet">Meeting notes</button>
+  </div>
+
+  <div class="tp on" id="t-plan"><p class="dhint">Drag classes by the ⠿ handle to move them between semesters. Waypoint checks prerequisites, when classes are offered and your credit load.</p><div class="sem-wrap" id="sems"></div></div>
+  <div class="tp" id="t-cc">
+    <div class="panel"><div class="in">
+      <h2 style="font-size:clamp(1.7rem,5vw,2.4rem)">Save money at a <span class="foil serif">community college</span></h2>
+      <p class="sub">See which classes in your plan you're allowed to take somewhere cheaper, what they're called there, and what your school's rules are. Some schools don't allow it at all.</p>
+      <label class="f">Community college</label>
+      <input class="field" id="ccname" placeholder="e.g. Dallas College" value="Dallas College">
+      <div class="actions" style="justify-content:flex-start"><button class="btn prime" id="ccgo">Check my options ✦</button></div>
+      <div class="err" id="errcc"></div>
+      <div id="polbox" style="display:none;margin-top:22px;padding-top:20px;border-top:1px solid var(--line)">
+        <div class="kick">Make it exact for your school</div>
+        <p class="sub" style="margin-bottom:12px">Waypoint has verified rules for 10 schools. For yours, open the official policy, copy the part about taking courses at other colleges, and paste it here. Waypoint will turn it into rules it checks for you.</p>
+        <div class="actions" style="justify-content:flex-start;margin:0 0 12px"><a class="btn" id="polfind" target="_blank" rel="noopener">🔎 Find my school's policy</a></div>
+        <textarea class="field" id="poltext" placeholder="Paste your school's transfer credit / taking courses elsewhere policy..."></textarea>
+        <div class="actions" style="justify-content:flex-start"><button class="btn prime" id="polgo">Use this policy</button></div>
+        <div class="err" id="errpol"></div>
+      </div>
+    </div></div>
+    <div id="ccout"></div>
+  </div>
+  <div class="tp" id="t-pick">
+    <div class="panel"><div class="in">
+      <h2 style="font-size:clamp(1.7rem,5vw,2.4rem)">Pick your <span class="foil serif">electives</span></h2>
+      <p class="sub">Every open slot in your plan (major electives, core curriculum and free electives, including ones outside your major) with real options from your school. Tap a class to lock it into your plan.</p>
+      <label class="f">What are you into? <span style="color:var(--muted);text-transform:none;letter-spacing:0">(optional, helps rank options)</span></label>
+      <input class="field" id="interests" placeholder="e.g. robotics, golf, business, design, AI">
+      <div class="actions" style="justify-content:flex-start"><button class="btn prime" id="pload">Show my options ✦</button></div>
+      <div class="err" id="errp"></div>
+    </div></div>
+    <div id="pbar" class="pbar"></div>
+    <div id="slots"></div>
+  </div>
+  <div class="tp" id="t-map">
+    <div class="panel"><div class="in">
+      <h2 style="font-size:clamp(1.7rem,5vw,2.4rem)">Build your <span class="foil serif">degree map</span></h2>
+      <p class="sub">A printable flowchart of every class, with arrows showing prerequisites, like your school's official degree plan. Pick how you want it.</p>
+      <div class="mopts" id="mopts"></div>
+      <div class="actions" style="justify-content:flex-start"><button class="btn prime" id="mbuild">Build my map ✦</button></div>
+      <div class="err" id="errm"></div>
+    </div></div>
+    <div class="mapbox" id="mapbox"></div>
+    <div class="maptools" id="maptools"><button class="btn prime" id="dlpdf">Download PDF</button><button class="btn" id="dlpng">Download PNG</button><button class="btn" id="mredo">Change options</button></div>
+    <p class="mhint" id="mhint"></p>
+  </div>
+  <div class="tp" id="t-reqs"><div id="catinfo"></div><div id="reqs"></div><div id="equiv"></div></div>
+  <div class="tp" id="t-flags"><div id="flags"></div><div id="recs"></div></div>
+  <div class="tp" id="t-ask">
+    <div class="panel"><div class="in">
+      <div class="sugs" id="sugs"></div>
+      <div class="chat" id="chat"></div>
+      <div class="chatin"><input class="field" id="cin" placeholder="Ask anything about your degree..."><button class="btn prime" id="csend">Ask</button></div>
+    </div></div>
+  </div>
+  <div class="tp" id="t-meet">
+    <p class="sub">Bring this to your real advisor so the meeting goes fast.</p>
+    <div class="summary" id="meet"></div>
+    <div class="actions" style="justify-content:flex-start"><button class="btn prime" id="copy">Copy notes</button><button class="btn" id="dlplan">Download full plan (PDF)</button></div>
+  </div>
+  <div class="note" id="cnote"></div>
+  <div class="actions" style="justify-content:center"><button class="btn" id="restart">↺ Start over</button></div>
+</section>
+
+<div class="toast" id="toast"></div>
+<footer>Waypoint · AI academic advisor · Built by Leya Glazer</footer>
+</div>
+
+<script>
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const S={school:'',major:'',minor:'',term:'',courses:[],questions:[],answers:{},plan:null,chat:[]};
+let samplePromise=null;
+const ON_SITE=!/claude|claudeusercontent|anthropic/i.test(location.hostname)&&location.protocol.startsWith('http');
+async function blobToB64(b){ const buf=new Uint8Array(await b.arrayBuffer()); let s=''; for(let i=0;i<buf.length;i+=32768) s+=String.fromCharCode.apply(null,buf.subarray(i,i+32768)); return btoa(s); }
+function backendSample(){
+  const call=async(input,opts={})=>{
+    let messages=typeof input==='string'?[{role:'user',content:input}]:input.map(m=>({role:m.role,content:m.content}));
+    if(opts.images&&opts.images.length){ const last=messages[messages.length-1]; const imgs=await Promise.all(opts.images.map(async b=>({type:'image',source:{type:'base64',media_type:b.type||'image/jpeg',data:await blobToB64(b)}})));
+      last.content=[...imgs,{type:'text',text:typeof last.content==='string'?last.content:''}]; }
+    const res=await fetch('/api/ai',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({messages,tier:opts.modelTier||'default'}),signal:opts.signal});
+    if(res.status===429) throw {code:'rate_limited',message:'Too many requests right now. Wait a minute and try again.'};
+    if(!res.ok||!res.body) throw {code:'unavailable',message:'The AI is busy right now. Try again in a moment.'};
+    const rd=res.body.getReader(), dec=new TextDecoder(); let buf='', text='';
+    while(true){ const {done,value}=await rd.read(); if(done) break; buf+=dec.decode(value,{stream:true}); let i;
+      while((i=buf.indexOf('\n\n'))>=0){ const ev=buf.slice(0,i); buf=buf.slice(i+2); const line=ev.split('\n').find(l=>l.startsWith('data:')); if(!line) continue;
+        try{ const d=JSON.parse(line.slice(5)); if(d.type==='content_block_delta'&&d.delta&&d.delta.text){ text+=d.delta.text; opts.onText&&opts.onText({text,delta:d.delta.text}); } if(d.type==='error') throw {code:'unavailable',message:'The AI hit an error. Try again.'}; }catch(e){ if(e&&e.code) throw e; } } }
+    return {text,truncated:false};
+  };
+  call.json=async(input,opts)=>{ const r=await call((typeof input==='string'?input:'')+'\n\nReturn ONLY valid JSON, no prose, no code fences.',opts); const t=r.text.replace(/^```(json)?|```$/gm,'').trim(); return JSON.parse(t.slice(t.indexOf('{'),t.lastIndexOf('}')+1)); };
+  call.limits=async()=>({images:true});
+  return call;
+}
+function getSample(){ if(ON_SITE) return Promise.resolve(backendSample()); if(!samplePromise){ samplePromise = window.claude&&window.claude.use ? window.claude.use('sample') : new Promise(r=>{let n=0;const t=setInterval(()=>{if(window.claude&&window.claude.use){clearInterval(t);r(window.claude.use('sample'))}else if(++n>40){clearInterval(t);r(null)}},250)}) } return samplePromise }
+getSample();
+
+function show(id,stepN){ $$('.view').forEach(v=>v.classList.remove('on')); $('#'+id).classList.add('on'); window.scrollTo({top:0,behavior:'smooth'}); if(stepN) $$('#steps i').forEach((x,i)=>x.classList.toggle('on',i<stepN)); }
+function err(el,msg){ const e=$(el); e.textContent=msg; e.style.display=msg?'block':'none'; }
+function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function save(){ try{localStorage.setItem('waypoint',JSON.stringify(S))}catch(e){} }
+
+async function ai(prompt,{json=false,tier='default',images}={}){
+  const sample=await getSample();
+  if(!sample) throw new Error('The AI isn\'t available in this view. Try the demo to see how it works.');
+  const opts={modelTier:tier}; if(images&&images.length) opts.images=images;
+  if(json){
+    try{ if(sample.json) return await sample.json(prompt,opts); }catch(e){ if(e&&e.code==='not_granted') throw new Error('Waypoint needs permission to use Claude. Allow it when asked, then try again.'); if(e&&e.code==='rate_limited') throw new Error('Too many requests right now. Wait a minute and try again.'); }
+    const r=await sample(prompt+'\n\nReturn ONLY valid JSON, no prose, no code fences.',opts);
+    const t=r.text.replace(/^```(json)?|```$/gm,'').trim(); const a=t.indexOf('{'),b=t.lastIndexOf('}');
+    return JSON.parse(t.slice(a,b+1));
+  }
+  return (await sample(prompt,opts)).text;
+}
+function aiErr(e){ if(e&&e.code==='not_granted') return 'Waypoint needs permission to use Claude. Allow it when asked, then try again.'; if(e&&e.code==='rate_limited') return 'Too many requests right now. Wait a minute and try again.'; return (e&&e.message)||'Something went wrong. Try again.'; }
+
+/* ---------- loader ---------- */
+let ltimer;
+function loader(title,steps,icons){
+  show('vL'); $('#ltxt').textContent=title;
+  $('#lsteps').innerHTML=steps.map(s=>`<div>${esc(s)}</div>`).join('');
+  const d=$$('#lsteps div'); let i=0; d[0].classList.add('on'); clearInterval(ltimer);
+  ltimer=setInterval(()=>{ if(i<d.length-1){d[i].classList.replace('on','done');i++;d[i].classList.add('on');$('#lic').textContent=icons[i%icons.length];} },2600);
+}
+function stopLoader(){ clearInterval(ltimer); }
+
+/* ---------- step 1 ---------- */
+$('#go1').onclick=()=>{
+  S.demo=false; S.school=$('#school').value.trim(); S.major=$('#major').value.trim(); S.minor=$('#minor').value.trim(); S.term=$('#term').value.trim(); S.cat=$('#cat').value.trim();
+  if(!S.school||!S.major){ $('#school').focus(); ['#school','#major'].forEach(s=>{if(!$(s).value.trim()){$(s).style.borderColor='#ff3d7f'}}); return; }
+  save(); show('v2',2); schoolBanner();
+};
+$$('[data-back]').forEach(b=>b.onclick=()=>show('v'+b.dataset.back,+b.dataset.back));
+
+/* ---------- step 2: transcript ---------- */
+let upload=null; // {text, images}
+const drop=$('#drop');
+['dragover','dragenter'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.add('over')}));
+['dragleave','drop'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.remove('over')}));
+drop.addEventListener('drop',ev=>{ if(ev.dataTransfer.files[0]) readFile(ev.dataTransfer.files[0]) });
+$('#file').onchange=e=>{ if(e.target.files[0]) readFile(e.target.files[0]) };
+
+async function readFile(f){
+  const chip=$('#chip'); chip.style.display='flex'; chip.textContent='⏳ Reading '+f.name+'...'; err('#err2','');
+  try{
+    if(f.type.startsWith('image/')){ upload={text:'',images:[f]}; }
+    else if(f.type==='application/pdf'||/\.pdf$/i.test(f.name)){
+      if(!window.pdfjsLib) throw new Error('PDF reader did not load. Paste your transcript text instead.');
+      pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      const pdf=await pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise; let text='';
+      for(let p=1;p<=Math.min(pdf.numPages,12);p++){ const pg=await pdf.getPage(p); const tc=await pg.getTextContent(); text+=tc.items.map(i=>i.str).join(' ')+'\n'; }
+      if(text.replace(/\s/g,'').length<80){ // scanned PDF: render pages to images
+        const imgs=[]; for(let p=1;p<=Math.min(pdf.numPages,4);p++){ const pg=await pdf.getPage(p); const vp=pg.getViewport({scale:1.6}); const c=document.createElement('canvas'); c.width=vp.width;c.height=vp.height; await pg.render({canvasContext:c.getContext('2d'),viewport:vp}).promise; imgs.push(await new Promise(r=>c.toBlob(r,'image/jpeg',.85))); }
+        upload={text:'',images:imgs};
+      } else upload={text:text.slice(0,30000),images:[]};
+    } else throw new Error('Use a PDF or image file.');
+    chip.textContent='✓ '+f.name+' ready';
+  }catch(e){ upload=null; chip.style.display='none'; err('#err2',e.message); }
+}
+
+$('#go2').onclick=async()=>{
+  err('#err2','');
+  const pasted=$('#paste').value.trim();
+  if(!upload&&!pasted){ err('#err2','Upload a transcript or paste your classes first.'); return; }
+  const src=pasted||(upload&&upload.text)||'';
+  const images=(!pasted&&upload&&upload.images.length)?upload.images:undefined;
+  loader('Reading your transcript',['Scanning courses','Matching grades and credits','Spotting transfer credit','Organizing by term'],['📄','🔎','🧮','🗂️']);
+  try{
+    const out=await ai(`You extract courses from a college student's transcript or course list.
+School: ${S.school}. Major: ${S.major}. Current term: ${S.term||'unknown'}.
+Return JSON: {"courses":[{"code":"DEPT 1234","title":"Course title","credits":3,"grade":"A","term":"Fall 2025","status":"completed|in_progress|transfer"}]}
+Rules: include every course. Courses with no final grade in the current/most recent term are "in_progress". Transfer, AP, dual-credit or courses from another institution are "transfer". Use null for unknown grade/term. Credits as a number.
+${src?'TRANSCRIPT TEXT:\n'+src:'The transcript is in the attached image(s).'}`,{json:true,tier:'default',images});
+    S.courses=(out.courses||[]).filter(c=>c&&(c.code||c.title));
+    stopLoader();
+    if(!S.courses.length) throw new Error("I couldn't find any classes in that file. Try a different file or paste the text.");
+    renderCourses(); $('#upArea').style.display='none'; $('#courseArea').style.display='block'; show('v2',2); save();
+  }catch(e){ stopLoader(); show('v2',2); err('#err2',aiErr(e)); }
+};
+function renderCourses(){
+  $('#ctable').innerHTML=S.courses.map((c,i)=>`<div class="crow" style="animation-delay:${Math.min(i,20)*30}ms">
+    <input class="code" value="${esc(c.code)}" data-i="${i}" data-k="code">
+    <input value="${esc(c.title)}" data-i="${i}" data-k="title">
+    <input class="cr" value="${esc(c.credits??'')}" data-i="${i}" data-k="credits" style="text-align:center">
+    <span class="tag t-${esc(c.status||'completed')}">${c.status==='in_progress'?'Now':c.status==='transfer'?'Transfer':esc(c.grade||'Done')}</span>
+    <button class="x" data-del="${i}" title="Remove">×</button></div>`).join('');
+  $$('#ctable input').forEach(inp=>inp.oninput=()=>{const c=S.courses[inp.dataset.i];c[inp.dataset.k]=inp.dataset.k==='credits'?Number(inp.value)||inp.value:inp.value;save()});
+  $$('#ctable [data-del]').forEach(b=>b.onclick=()=>{S.courses.splice(+b.dataset.del,1);renderCourses();save()});
+}
+$('#addc').onclick=()=>{S.courses.push({code:'',title:'',credits:3,grade:null,term:null,status:'completed'});renderCourses();const ins=$$('#ctable .code');ins[ins.length-1].focus()};
+$('#reup').onclick=()=>{ $('#upArea').style.display='block'; $('#courseArea').style.display='none'; };
+
+/* ---------- step 3: questions ---------- */
+$('#go3').onclick=async()=>{
+  loader('Getting to know your plans',['Looking at where you are','Thinking about what matters next','Writing your questions'],['🧭','💭','✍️']);
+  try{
+    const out=await ai(`You are an expert academic advisor at ${S.school}. A ${S.major} student${S.minor?' (minor/second major: '+S.minor+')':''}, current term ${S.term||'unknown'}, has taken: ${S.courses.map(c=>c.code+' '+(c.title||'')).join('; ')}.
+Catalog year: ${S.cat||'unknown'}.
+Write 6 short, specific questions about their FUTURE plans that would change how you build their remaining semester-by-semester plan (e.g. target graduation term, summer classes, max credits per semester, internships/co-op semesters, grad school or accelerated BS/MS, minors, study abroad, specialization/track for this major, part-time work; if the catalog year is unknown, one question should ask which year they started at this school). Tailor them to this major and school.
+Return JSON: {"questions":[{"id":"q1","q":"question text","options":["short option","short option","short option","short option"]}]}. 3-5 options each, each under 6 words.`,{json:true,tier:'quick'});
+    S.questions=(out.questions||[]).slice(0,7); stopLoader(); renderQs(); show('v3',3); save();
+  }catch(e){ stopLoader(); show('v2',2); err('#err2',aiErr(e)); }
+};
+function renderQs(){
+  $('#qs').innerHTML=S.questions.map((q,i)=>`<div class="q" style="animation-delay:${i*90}ms"><div class="qt"><span class="qn">${String(i+1).padStart(2,'0')}</span><span>${esc(q.q)}</span></div>
+   <div class="chips">${(q.options||[]).map(o=>`<button class="chip${S.answers[q.id]===o?' on':''}" data-q="${esc(q.id)}">${esc(o)}</button>`).join('')}</div>
+   <input class="field" data-qt="${esc(q.id)}" placeholder="Or type your own answer..." value="${esc(S.answers[q.id+'_t']||'')}"></div>`).join('');
+  $$('#qs .chip').forEach(ch=>ch.onclick=()=>{ const id=ch.dataset.q; $$(`#qs .chip[data-q="${id}"]`).forEach(x=>x.classList.remove('on')); ch.classList.add('on'); S.answers[id]=ch.textContent; save(); });
+  $$('#qs [data-qt]').forEach(inp=>inp.oninput=()=>{S.answers[inp.dataset.qt+'_t']=inp.value;save()});
+}
+
+/* ---------- step 4: plan ---------- */
+$('#go4').onclick=buildPlan;
+async function buildPlan(){
+  err('#err3','');
+  const qa=S.questions.map(q=>`- ${q.q} → ${[S.answers[q.id],S.answers[q.id+'_t']].filter(Boolean).join('; ')||'(no answer)'}`).join('\n');
+  loader(`Researching ${S.school}`,[`Pulling the ${S.major} requirements for your catalog year`,'Checking course equivalences and renumbered classes','Checking off what you have done','Mapping prerequisites','Placing classes into semesters','Looking for problems early'],['🔬','✅','🧩','🗓️','⚠️']);
+  try{
+    const out=await ai(`You are a meticulous senior academic advisor. Use your knowledge of ${S.school}'s current undergraduate catalog for ${S.major}${S.minor?' plus '+S.minor:''}: degree requirements, core curriculum, typical course codes, prerequisite chains, and which courses are only offered in certain terms.
+Current term: ${S.term||'unknown'}.
+COURSES TAKEN (JSON): ${JSON.stringify(S.courses)}
+STUDENT'S FUTURE PLANS:
+${qa}
+
+CATALOG YEAR: ${S.cat||'not given: infer from the earliest term on the transcript and say which year you assumed'}.
+CATALOG + EQUIVALENCE CHECK (important): Degree plans change every year, and courses get renumbered, renamed, merged, split or retired. Audit against the requirements of the student's catalog year, not just the newest one. For every taken course (including transfer and AP credit), decide which current requirement it satisfies, even if its code/title differs from today's catalog (e.g. an old number that was renumbered, a course that was renamed, a transfer course with a different code). Record each non-obvious mapping in "equivalences". NEVER silently drop a taken course: every course on the transcript must either satisfy a requirement, count as a free/technical elective, or be listed in "unused" with the reason. If a course could replace a required course by substitution or petition (e.g. a programming course from another department in place of the major's listed programming course), put it in equivalences with confidence "verify" and say to petition. If a course they took no longer exists or its replacement covers different content, flag it. Note any requirement differences between their catalog year and the newest catalog, and whether switching to the newer catalog would help or hurt them.
+Do a degree audit and build the remaining plan. Count in-progress courses as completing this term. Apply transfer credit where it normally applies. Respect prerequisites and typical offering terms. Honor their plans (graduation target, summers, load, internships). If they want community college classes, only plan lower-division courses there and follow the school's rules (some private universities forbid community college credit after enrollment; UT Dallas forbids off-campus classes in the graduating semester).
+Return JSON exactly in this shape:
+{"title":"short headline like 'On track for May 2029'",
+"summary":"2-3 sentence overview in second person",
+"totalCredits":number,"creditsDone":number,"creditsInProgress":number,"percent":number(0-100, done+in progress over total),
+"gradTerm":"e.g. May 2029",
+"requirements":[{"group":"e.g. Major Core","items":[{"code":"MECH 3310","title":"Thermodynamics","credits":3,"status":"done|in_progress|remaining","satisfiedBy":"course code if different, else null"}]}],
+"semesters":[{"term":"Spring 2027","credits":number,"courses":[{"code":"","title":"","credits":3,"note":"short reason if important, else null"}]}],
+"warnings":[{"level":"high|med|info","text":"specific issue and what to do"}],
+"recommendations":["specific tip"],
+"catalogUsed":"e.g. 2025-2026 undergraduate catalog (assumed from first term Fall 2025)",
+"equivalences":[{"taken":"code + title as on transcript","countsAs":"current requirement code + title","why":"renumbered in 2024 / transfer equivalent / renamed / etc.","confidence":"high|verify"}],
+"unused":[{"course":"code + title","why":"why it does not count yet and how it could (petition, elective, minor)"}],
+"catalogChanges":["specific difference between their catalog year and the newest catalog that affects them, or a note that switching catalogs would/wouldn't help"],
+"confidence":"one sentence on which parts to verify in the official catalog",
+"meetingNotes":"plain-text one-page summary for a real advisor meeting: status, proposed plan by term, questions to ask the advisor"}
+Cover ALL remaining requirements in the semesters. Use real course codes for this school when you know them; if unsure, use the closest typical code and say so in a note.`,{json:true,tier:'complex'});
+    S.plan=out; S.chat=[]; S.map=null; S.info=null; S.cc=null; $('#ccout').innerHTML=''; S.slots=null; S.picks={}; $('#slots').innerHTML=''; $('#pbar').style.display='none'; $('#mapbox').style.display='none'; $('#maptools').style.display='none'; stopLoader(); renderPlan(); show('v4',4); save(); confetti();
+  }catch(e){ stopLoader(); show('v3',3); err('#err3',aiErr(e)); }
+}
+function renderPlan(){
+  const p=S.plan||{}; const pct=Math.max(0,Math.min(100,Math.round(+p.percent||0)));
+  $('#dtitle').innerHTML=esc(p.title||'Your path');
+  $('#dsum').textContent=p.summary||'';
+  $('#demotag').style.display=S.demo?'inline-block':'none'; $('#dpill').innerHTML=`<span class="dot"></span>${esc(S.school)} · ${esc(S.major)}`;
+  const done=Math.round((+p.creditsDone||0)+(+p.creditsInProgress||0));
+  countUp('#sDone',done); countUp('#sLeft',Math.max(0,Math.round((+p.totalCredits||0)-done))); $('#sGrad').textContent=p.gradTerm||'—';
+  setTimeout(()=>{ $('#arc').style.strokeDashoffset=590.6*(1-pct/100); countUp('#pct',pct,'%'); },200);
+  $('#sems').innerHTML=(p.semesters||[]).map((s,i)=>`<div class="sem" data-term="${esc(s.term)}" style="animation-delay:${i*90}ms"><div class="in"><h4>${esc(s.term)}<small>${semCredits(s)} CR</small></h4>${(s.courses||[]).map(c=>`<div class="course" data-code="${esc(c.code)}"><span class="grip" title="Drag to another semester">⠿</span><div class="cbody"><b>${esc(c.code)}</b>${esc(c.title)}${c.at?`<span class="ccbadge">@ ${esc(c.at)}</span>`:''}${c.note?`<em>${esc(c.note)}</em>`:''}</div></div>`).join('')}</div></div>`).join('')||'<p class="sub">No semesters returned.</p>';
+  $('#reqs').innerHTML=(p.requirements||[]).map(g=>{const it=g.items||[];const d=it.filter(x=>x.status!=='remaining').length;return `<div class="req"><h4>${esc(g.group)}<span>${d}/${it.length}</span></h4><div class="bar"><i data-w="${it.length?d/it.length*100:0}"></i></div><div class="items">${it.map(x=>`<span class="it ${esc(x.status)}" title="${esc(x.title)}">${x.status==='done'?'✓ ':x.status==='in_progress'?'◐ ':''}${esc(x.code||x.title)}</span>`).join('')}</div></div>`}).join('');
+  bindDrag(); ensureInfo();
+  setTimeout(()=>$$('#reqs .bar i').forEach(b=>b.style.width=b.dataset.w+'%'),300);
+  $('#catinfo').innerHTML=p.catalogUsed?`<div class="catbar">📘 <b>Audited against:</b> ${esc(p.catalogUsed)}</div>`:'';
+  const eq=p.equivalences||[], cc=p.catalogChanges||[];
+  $('#equiv').innerHTML=(eq.length?`<div class="eqh">🔁 Course equivalences <span class="tag t-transfer">${eq.length}</span></div>`+eq.map((e,i)=>`<div class="eq" style="animation-delay:${i*60}ms"><div><b>${esc(e.taken)}</b><small>what you took</small></div><div class="arr">→</div><div><b>${esc(e.countsAs)}</b><small>${esc(e.why||'')}</small></div>${e.confidence==='verify'?'<div class="chk">⚠ Verify this one on your official degree audit</div>':''}</div>`).join(''):'')
+   +((p.unused||[]).length?`<div class="eqh">🧾 Not counting yet <span class="tag t-in_progress">${p.unused.length}</span></div>`+p.unused.map(u=>`<div class="warn med"><span class="ic">🧾</span><div><b>${esc(u.course)}</b><br>${esc(u.why)}</div></div>`).join(''):'')
+   +(cc.length?`<div class="eqh">📅 Catalog changes that affect you</div>`+cc.map(c=>`<div class="warn info"><span class="ic">📘</span><div>${esc(c)}</div></div>`).join(''):'');
+  const ic={high:'🚨',med:'⚠️',info:'💡'};
+  $('#flags').innerHTML=(p.warnings||[]).map((w,i)=>`<div class="warn ${esc(w.level)}" style="animation-delay:${i*80}ms"><span class="ic">${ic[w.level]||'💡'}</span><div>${esc(w.text)}</div></div>`).join('')||'<p class="sub">No red flags. Nice.</p>';
+  $('#recs').innerHTML=(p.recommendations||[]).length?`<h4 style="font-family:var(--d);margin:22px 0 10px">Smart moves</h4>`+p.recommendations.map(r=>`<div class="warn info"><span class="ic">✦</span><div>${esc(r)}</div></div>`).join(''):'';
+  $('#meet').textContent=p.meetingNotes||'';
+  $('#cnote').textContent='⚠ '+(p.confidence||'')+' Waypoint plans from what the AI knows about your school\'s catalog. Always confirm with your official degree audit and advisor.';
+  const sug=['Should I switch to the newer catalog?','Can I graduate a semester early?','What should I take next semester?','Which classes are hardest to get into?','Can I add a minor without delaying graduation?'];
+  $('#sugs').innerHTML=sug.map(s=>`<button class="chip">${s}</button>`).join('');
+  $$('#sugs .chip').forEach(c=>c.onclick=()=>{$('#cin').value=c.textContent;sendChat()});
+  $('#chat').innerHTML=S.chat.map(m=>`<div class="msg ${m.role==='user'?'u':'a'}">${esc(m.content)}</div>`).join('');
+}
+function countUp(sel,to,suf=''){ const el=$(sel); const t0=performance.now(); const f=n=>{const k=Math.min(1,(n-t0)/1400);el.textContent=Math.round(to*(1-Math.pow(1-k,3)))+suf;if(k<1)requestAnimationFrame(f)};requestAnimationFrame(f); }
+$$('.tab').forEach(t=>t.onclick=()=>{ if(t.dataset.tab==='cc') showPolBox(); $$('.tab').forEach(x=>x.classList.remove('on')); t.classList.add('on'); $$('.tp').forEach(x=>x.classList.remove('on')); $('#t-'+t.dataset.tab).classList.add('on'); });
+
+/* chat */
+$('#csend').onclick=sendChat; $('#cin').addEventListener('keydown',e=>{if(e.key==='Enter')sendChat()});
+let chatBusy=false;
+async function sendChat(){
+  const q=$('#cin').value.trim(); if(!q||chatBusy) return; chatBusy=true; $('#cin').value='';
+  S.chat.push({role:'user',content:q});
+  const box=$('#chat'); box.insertAdjacentHTML('beforeend',`<div class="msg u">${esc(q)}</div><div class="msg a" id="pending">Thinking...</div>`); box.scrollTop=box.scrollHeight;
+  const ctx=`You are Waypoint, a friendly, direct academic advisor for a ${S.major} student at ${S.school}. Use this student data and plan. Be specific, short (under 150 words), and say when something should be confirmed with the official catalog or a human advisor.
+COURSES: ${JSON.stringify(S.courses)}
+CATALOG YEAR: ${S.cat||S.plan.catalogUsed||'unknown'}
+PLAN: ${JSON.stringify({catalogUsed:S.plan.catalogUsed,equivalences:S.plan.equivalences,catalogChanges:S.plan.catalogChanges,gradTerm:S.plan.gradTerm,semesters:S.plan.semesters,warnings:S.plan.warnings,requirements:S.plan.requirements})}`;
+  const msgs=[{role:'user',content:ctx+'\n\nReply "Ready." only.'},{role:'assistant',content:'Ready.'},...S.chat.slice(-10)];
+  try{
+    const sample=await getSample(); if(!sample) throw new Error('AI is not available in this view.');
+    const r=await sample(msgs,{modelTier:'default',cache:false,onText:({text})=>{const p=$('#pending');if(p){p.textContent=text;box.scrollTop=box.scrollHeight}}});
+    S.chat.push({role:'assistant',content:r.text}); const p=$('#pending'); if(p){p.textContent=r.text;p.removeAttribute('id')}
+  }catch(e){ const p=$('#pending'); if(p){p.textContent=aiErr(e);p.removeAttribute('id')} S.chat.pop(); }
+  chatBusy=false; save();
+}
+$('#copy').onclick=async()=>{ try{ await navigator.clipboard.writeText($('#meet').textContent); $('#copy').textContent='Copied ✓'; }catch(e){ const r=document.createRange();r.selectNodeContents($('#meet'));const s=getSelection();s.removeAllRanges();s.addRange(r);$('#copy').textContent='Selected, press Copy'; } setTimeout(()=>$('#copy').textContent='Copy notes',2500); };
+$('#restart').onclick=()=>{ try{localStorage.removeItem('waypoint')}catch(e){} location.hash=''; location.reload(); };
+
+function confetti(){ if(matchMedia('(prefers-reduced-motion: reduce)').matches) return; const cols=['#7c5cff','#22e4ff','#2bff9a','#ffc94a','#ff3d7f']; for(let i=0;i<90;i++){ const c=document.createElement('div'); c.className='confetti'; c.style.left=Math.random()*100+'vw'; c.style.background=cols[i%5]; c.style.animationDuration=(2+Math.random()*2.5)+'s'; c.style.animationDelay=Math.random()*.6+'s'; c.style.borderRadius=Math.random()>.5?'50%':'2px'; document.body.appendChild(c); setTimeout(()=>c.remove(),5200);} }
+
+
+/* ---------- degree map ---------- */
+const MOPTS=[
+ {k:'orient',l:'Layout',o:[['cols','Semesters left → right'],['rows','Semesters top → bottom']]},
+ {k:'color',l:'Color classes by',o:[['cat','Requirement type'],['status','Done / in progress / to do']]},
+ {k:'arrows',l:'Prerequisite arrows',o:[['on','Show arrows'],['off','No arrows']]},
+ {k:'past',l:'Classes you already took',o:[['on','Include them'],['off','Only what\'s left']]},
+ {k:'theme',l:'Style',o:[['print','Clean print (white)'],['neon','Neon dark']]},
+ {k:'size',l:'Paper size',o:[['letter','Letter (11×8.5 in)'],['poster','Poster (36×24 in)']]}
+];
+S.mopt=S.mopt||{orient:'cols',color:'cat',arrows:'on',past:'on',theme:'print',size:'letter'};
+function renderMopts(){
+  $('#mopts').innerHTML=MOPTS.map(m=>`<div class="mopt"><div class="ml">${m.l}</div><div class="chips">${m.o.map(([v,t])=>`<button class="chip${S.mopt[m.k]===v?' on':''}" data-mk="${m.k}" data-mv="${v}">${esc(t)}</button>`).join('')}</div></div>`).join('');
+  $$('#mopts .chip').forEach(c=>c.onclick=()=>{S.mopt[c.dataset.mk]=c.dataset.mv;save();renderMopts();if(S.map)drawMap();});
+}
+renderMopts();
+$('#mredo').onclick=()=>{ $('#t-map .panel').scrollIntoView({behavior:'smooth'}); };
+$('#mbuild').onclick=async()=>{
+  err('#errm',''); const b=$('#mbuild'); b.disabled=true; b.textContent='Mapping prerequisites...';
+  try{
+    const out=await ai(`You are building a degree-plan flowchart for a ${S.major} student at ${S.school}, like the official 4-year degree plan flowcharts universities publish.
+COMPLETED / IN-PROGRESS COURSES: ${JSON.stringify(S.courses.map(c=>({code:c.code,title:c.title,credits:c.credits,term:c.term,status:c.status})))}
+PLANNED SEMESTERS: ${JSON.stringify((S.plan.semesters||[]).map(x=>({term:x.term,courses:(x.courses||[]).map(c=>({code:c.code,title:c.title,credits:c.credits}))})))}
+Return JSON {"nodes":[{"code":"MECH 2320","title":"short title (max 28 chars)","credits":3,"term":"Spring 2027","category":"one of a few groups e.g. Math, Science, Engineering Core, Major, Core Curriculum, Elective, Transfer","status":"done|in_progress|planned","prereqs":["MECH 2310"]}]}
+Include every course above exactly once. For completed courses use their term ("Transfer/AP" for transfer credit with no term). prereqs = only direct prerequisites that also appear in this list. Use 4-7 categories total.`,{json:true,tier:'default'});
+    S.map=(out.nodes||[]).filter(n=>n&&n.code); if(!S.map.length) throw new Error('No classes came back. Try again.');
+    save(); drawMap(); setTimeout(()=>$('#mapbox').scrollIntoView({behavior:'smooth',block:'start'}),200);
+  }catch(e){ err('#errm',aiErr(e)); }
+  b.disabled=false; b.textContent='Rebuild my map ✦';
+};
+function termKey(t){ t=String(t||''); if(/transfer|ap\b/i.test(t)) return -1; const y=+(t.match(/(19|20)\d\d/)||[0])[0]; const s=/spring/i.test(t)?1:/summer/i.test(t)?2:/fall/i.test(t)?3:/winter/i.test(t)?0:1.5; return y*10+s; }
+function drawMap(){
+  const o=S.mopt, print=o.theme==='print';
+  let nodes=S.map.filter(n=>o.past==='on'||n.status==='planned');
+  const terms=[...new Set(nodes.map(n=>n.term||'Transfer/AP'))].sort((a,b)=>termKey(a)-termKey(b));
+  const cats=[...new Set(nodes.map(n=>n.category||'Other'))];
+  const palN=['#7c5cff','#22e4ff','#2bff9a','#ffc94a','#ff3d7f','#ff8a3d','#b4ff3d','#5c9dff'];
+  const palP=['#cfe0ff','#ffe0b5','#d4f2cb','#efd6ff','#ffd3d3','#cff0f2','#fff1a8','#e4e4e4'];
+  const stN={done:'#2bff9a',in_progress:'#ffc94a',planned:'#7c5cff'}, stP={done:'#d4f2cb',in_progress:'#fff1a8',planned:'#cfe0ff'};
+  const fillOf=n=> o.color==='status' ? (print?stP:stN)[n.status]||'#ccc' : (print?palP:palN)[cats.indexOf(n.category||'Other')%8];
+  const W=168,H=60,GX=46,GY=16,PAD=40,HEAD=120,LEG=70;
+  const cols=o.orient==='cols';
+  const pos={}; let maxN=0;
+  terms.forEach((t,ti)=>{ const list=nodes.filter(n=>(n.term||'Transfer/AP')===t); maxN=Math.max(maxN,list.length);
+    list.forEach((n,ni)=>{ pos[n.code]=cols?{x:PAD+ti*(W+GX),y:HEAD+40+ni*(H+GY),t:ti}:{x:PAD+180+ni*(W+GX*0.5),y:HEAD+ti*(H+GY*2.6),t:ti}; }); });
+  const w=cols?PAD*2+terms.length*(W+GX)-GX:PAD*2+180+maxN*(W+GX*0.5);
+  const h=cols?HEAD+40+maxN*(H+GY)+LEG+PAD:HEAD+terms.length*(H+GY*2.6)+LEG+PAD;
+  const bg=print?'#ffffff':'#07070d', ink=print?'#111':'#f4f5f8', mut=print?'#666':'#9a9db0', line=print?'#d0d0d0':'rgba(255,255,255,.12)', arrow=print?'#444':'rgba(200,210,255,.55)';
+  const F='Helvetica Neue, Helvetica, Arial, sans-serif';
+  let g=`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" font-family="${F}">
+  <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="${arrow}"/></marker>
+  <linearGradient id="hg" x1="0" x2="1"><stop offset="0" stop-color="#7c5cff"/><stop offset=".5" stop-color="#22e4ff"/><stop offset="1" stop-color="#ff3d7f"/></linearGradient></defs>
+  <rect width="100%" height="100%" fill="${bg}"/>
+  <rect x="0" y="0" width="${w}" height="6" fill="url(#hg)"/>
+  <text x="${PAD}" y="52" font-size="26" font-weight="700" fill="${ink}">${esc(S.school)} · ${esc(S.major)}</text>
+  <text x="${PAD}" y="78" font-size="14" fill="${mut}">Degree plan flowchart${S.plan.gradTerm?' · projected graduation '+esc(S.plan.gradTerm):''} · made with Waypoint</text>`;
+  terms.forEach((t,ti)=>{ if(cols){ const x=PAD+ti*(W+GX); g+=`<rect x="${x-8}" y="${HEAD-6}" width="${W+16}" height="${h-HEAD-LEG-PAD+20}" rx="12" fill="${print?(ti%2?'#fafafa':'#f3f5fa'):(ti%2?'rgba(255,255,255,.015)':'rgba(255,255,255,.035)')}"/><text x="${x+W/2}" y="${HEAD+20}" text-anchor="middle" font-size="14" font-weight="700" fill="${ink}">${esc(t)}</text>`;
+    } else { const y=HEAD+ti*(H+GY*2.6); g+=`<rect x="${PAD-8}" y="${y-8}" width="${w-PAD*2+16}" height="${H+16}" rx="12" fill="${print?(ti%2?'#fafafa':'#f3f5fa'):(ti%2?'rgba(255,255,255,.015)':'rgba(255,255,255,.035)')}"/><text x="${PAD+4}" y="${y+H/2+5}" font-size="14" font-weight="700" fill="${ink}">${esc(t)}</text>`; } });
+  if(o.arrows==='on'){ nodes.forEach(n=>(n.prereqs||[]).forEach(p=>{ const a=pos[p],b=pos[n.code]; if(!a||!b) return;
+      let d; if(cols){ const x1=a.x+W,y1=a.y+H/2,x2=b.x,y2=b.y+H/2; if(a.t===b.t){ d=`M${a.x+W/2},${a.y+H} L${b.x+W/2},${b.y}`;} else { const mx=(x1+x2)/2; d=`M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2-2},${y2}`;} }
+      else { const x1=a.x+W/2,y1=a.y+H,x2=b.x+W/2,y2=b.y; const my=(y1+y2)/2; d=`M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2-2}`; }
+      g+=`<path class="edge" d="${d}" fill="none" stroke="${arrow}" stroke-width="1.6" marker-end="url(#ah)"/>`; })); }
+  nodes.forEach((n,i)=>{ const p=pos[n.code]; if(!p) return; const f=fillOf(n); const dark=!print;
+    const dash=n.status==='in_progress'?' stroke-dasharray="5 4"':'';
+    const slotId=(S.slots||[]).find(x=>(x.placeholder===n.code||S.picks[x.id]===n.code)&&(!x.term||x.term===n.term));
+    g+=`<g class="node${slotId?' pickable':''}"${slotId?` data-slot="${esc(slotId.id)}"`:''} style="animation-delay:${Math.min(i,60)*25}ms;transform-origin:${p.x+W/2}px ${p.y+H/2}px">
+    <rect x="${p.x}" y="${p.y}" width="${W}" height="${H}" rx="10" fill="${dark?'#10101a':f}" stroke="${dark?f:'#555'}" stroke-width="${dark?2:1.2}"${dash}/>
+    ${dark?`<rect x="${p.x}" y="${p.y}" width="6" height="${H}" rx="3" fill="${f}"/>`:''}
+    <text x="${p.x+12}" y="${p.y+22}" font-size="13.5" font-weight="700" fill="${dark?f:'#111'}">${esc(n.code)}</text>
+    <text x="${p.x+W-10}" y="${p.y+22}" font-size="11" text-anchor="end" fill="${dark?'#9a9db0':'#444'}">${esc(n.credits??'')} cr</text>
+    <text x="${p.x+12}" y="${p.y+42}" font-size="11.5" fill="${dark?'#e8e9f0':'#222'}">${esc(String(n.title||'').slice(0,26))}</text>
+    ${n.status==='done'?`<text x="${p.x+W-10}" y="${p.y+H-9}" font-size="13" text-anchor="end" fill="${dark?'#2bff9a':'#1a7a2e'}">✓</text>`:''}
+    </g>`; });
+  const legItems=o.color==='status'?[['Completed',(print?stP:stN).done],['In progress',(print?stP:stN).in_progress],['Planned',(print?stP:stN).planned]]:cats.map((c,i)=>[c,(print?palP:palN)[i%8]]);
+  let lx=PAD; const ly=h-PAD-10;
+  legItems.forEach(([t,c])=>{ g+=`<rect x="${lx}" y="${ly-12}" width="16" height="16" rx="4" fill="${c}" stroke="${print?'#555':'none'}"/><text x="${lx+22}" y="${ly+1}" font-size="12.5" fill="${ink}">${esc(t)}</text>`; lx+=34+t.length*7.2; });
+  if(o.arrows==='on'){ g+=`<path d="M${lx+6},${ly-4} L${lx+34},${ly-4}" stroke="${arrow}" stroke-width="1.6" marker-end="url(#ah)"/><text x="${lx+42}" y="${ly+1}" font-size="12.5" fill="${ink}">Prerequisite</text>`; lx+=140; }
+  g+=`<text x="${lx+10}" y="${ly+1}" font-size="12.5" fill="${mut}">Dashed border = in progress</text>`;
+  g+='</svg>';
+  const box=$('#mapbox'); box.innerHTML=g; setTimeout(()=>$$('#mapbox .node.pickable').forEach(n=>n.onclick=()=>{ $$('.tab').forEach(x=>x.classList.toggle('on',x.dataset.tab==='pick')); $$('.tp').forEach(x=>x.classList.toggle('on',x.id==='t-pick')); renderSlots(); const el=document.getElementById('slot-'+n.dataset.slot); if(el) el.scrollIntoView({behavior:'smooth',block:'center'}); }),0); box.style.display='block'; box.style.background=bg; $('#maptools').style.display='flex';
+  $('#mhint').textContent=(S.mopt.size==='poster'?'Poster: 36×24 in':'Letter: 11×8.5 in')+' landscape. Download the PDF to print it.'+((S.slots||[]).length?' Tap an elective box to choose that class.':'');
+}
+async function mapPNG(scale){
+  const svg=$('#mapbox svg'); const xml=new XMLSerializer().serializeToString(svg).replace(/class="(node|edge)"/g,'');
+  const img=new Image(); img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(xml);
+  await img.decode(); const c=document.createElement('canvas'); c.width=svg.width.baseVal.value*scale; c.height=svg.height.baseVal.value*scale;
+  const x=c.getContext('2d'); x.scale(scale,scale); x.drawImage(img,0,0); return c;
+}
+async function saveFile(name,data,btn,label){
+  if(ON_SITE){ const blob=data instanceof Blob?data:new Blob([data]); const u=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=u; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(u),4000); btn.textContent='Downloaded ✓'; setTimeout(()=>btn.textContent=label,2500); return; }
+  try{ const d=await claude.use('downloads'); if(!d) throw {code:'unavailable'}; btn.textContent='Saving...'; await d.save({filename:name,data}); btn.textContent='Saved ✓'; }
+  catch(e){ btn.textContent=e&&e.code==='declined'?'Cancelled':'Download unavailable here'; }
+  setTimeout(()=>btn.textContent=label,2500);
+}
+$('#dlpng').onclick=async()=>{ const c=await mapPNG(2.5); c.toBlob(b=>saveFile('degree-map.png',b,$('#dlpng'),'Download PNG'),'image/png'); };
+$('#dlpdf').onclick=async()=>{
+  const btn=$('#dlpdf'); if(!window.jspdf){ btn.textContent='PDF tool did not load'; return; }
+  const c=await mapPNG(3); const poster=S.mopt.size==='poster'; const pw=poster?36:11, ph=poster?24:8.5;
+  const pdf=new jspdf.jsPDF({orientation:'landscape',unit:'in',format:[pw,ph]});
+  const m=poster?.6:.35, aw=pw-2*m, ah=ph-2*m, r=Math.min(aw/c.width,ah/c.height); const iw=c.width*r, ih=c.height*r;
+  if(S.mopt.theme==='neon'){ pdf.setFillColor(7,7,13); pdf.rect(0,0,pw,ph,'F'); }
+  pdf.addImage(c.toDataURL('image/png'),'PNG',(pw-iw)/2,(ph-ih)/2,iw,ih);
+  saveFile('degree-map.pdf',pdf.output('blob'),btn,'Download PDF');
+};
+if(S.map&&S.plan) drawMap();
+
+
+
+
+/* ---------- drag & drop with prereq checks ---------- */
+function semCredits(sm){ return (sm.courses||[]).reduce((a,c)=>a+(+c.credits||0),0)||sm.credits||''; }
+function season(t){ return /spring/i.test(t)?'Spring':/summer/i.test(t)?'Summer':/fall/i.test(t)?'Fall':''; }
+function infoFor(code){ const i=(S.info||{})[code]||{}; const m=(S.map||[]).find(n=>n.code===code); return {prereqs:i.prereqs||(m&&m.prereqs)||[],offered:i.offered||'Both'}; }
+let infoBusy=false;
+async function ensureInfo(){
+  if(S.info||infoBusy||!S.plan||S.demo) return; infoBusy=true;
+  const planned=(S.plan.semesters||[]).flatMap(x=>(x.courses||[]).map(c=>c.code)).filter(c=>!/xx/i.test(c));
+  try{ const r=await ai(`For these ${S.school} courses (${S.cat||S.plan.catalogUsed||'current'} catalog), give each course's direct prerequisites (course codes only, include ones the student already took) and which terms it is normally offered.
+Courses: ${planned.join(', ')}
+Already taken: ${S.courses.map(c=>c.code).join(', ')}
+Return JSON {"info":{"CODE":{"prereqs":["CODE"],"offered":"Fall|Spring|Both|Summer|All"}}}. Use "Both" if offered fall and spring, "All" if every term.`,{json:true,tier:'default'});
+    S.info=r.info||{}; save(); }catch(e){}
+  infoBusy=false;
+}
+function locate(code){
+  const t=S.courses.find(c=>c.code===code); if(t) return {done:true,status:t.status,key:t.status==='in_progress'?termKey(S.term||t.term):-1};
+  for(const sm of S.plan.semesters||[]) if((sm.courses||[]).some(c=>c.code===code)) return {term:sm.term,key:termKey(sm.term)};
+  return null;
+}
+function check(code,toTerm){
+  const tk=termKey(toTerm), errs=[], warns=[], info=infoFor(code);
+  if(S.term&&tk<=termKey(S.term)) errs.push(`${toTerm} has already started or passed.`);
+  info.prereqs.forEach(p=>{ const l=locate(p); if(!l) return; if(l.done){ if(l.status==='in_progress'&&tk<=l.key) errs.push(`${code} needs ${p}, which you're finishing in ${S.term}.`); return; }
+    if(l.key>=tk) errs.push(`${code} needs ${p} first, and ${p} is in ${l.term}.`); });
+  (S.plan.semesters||[]).forEach(sm=>(sm.courses||[]).forEach(c=>{ if(c.code!==code&&infoFor(c.code).prereqs.includes(code)&&termKey(sm.term)<=tk) errs.push(`${c.code} in ${sm.term} needs ${code} before it.`); }));
+  const se=season(toTerm), off=info.offered;
+  if(se&&off&&!/both|all/i.test(off)&&!new RegExp(se,'i').test(off)) errs.push(`${code} is usually only offered in ${off.toLowerCase()}.`);
+  const sm=(S.plan.semesters||[]).find(x=>x.term===toTerm); const c=findCourse(code); const load=(sm?semCredits(sm):0)+(+c?.credits||3);
+  const max=se==='Summer'?12:18; if(load>max) warns.push(`That puts ${toTerm} at ${load} credits, a heavy load.`);
+  return {errs,warns};
+}
+function findCourse(code){ for(const sm of S.plan.semesters||[]){ const c=(sm.courses||[]).find(c=>c.code===code); if(c) return c; } }
+function moveCourse(code,from,to){
+  const a=S.plan.semesters.find(x=>x.term===from), b=S.plan.semesters.find(x=>x.term===to); if(!a||!b) return;
+  const i=a.courses.findIndex(c=>c.code===code); const [c]=a.courses.splice(i,1); b.courses.push(c);
+  a.credits=semCredits(a); b.credits=semCredits(b);
+  (S.map||[]).forEach(n=>{ if(n.code===code&&n.term===from) n.term=to; });
+  save(); renderPlanKeepTab(); if(S.map&&$('#mapbox').style.display==='block') drawMap();
+  const el=$(`#sems .sem[data-term="${CSS.escape(to)}"] .course[data-code="${CSS.escape(code)}"]`); if(el) el.classList.add('just');
+}
+function bindDrag(){
+  $$('#sems .grip').forEach(g=>g.onpointerdown=e=>{
+    e.preventDefault(); const row=g.closest('.course'), code=row.dataset.code, from=row.closest('.sem').dataset.term;
+    const ghost=document.createElement('div'); ghost.className='dragghost'; ghost.textContent=code; document.body.appendChild(ghost);
+    row.classList.add('dragging'); let over=null;
+    const mv=ev=>{ ghost.style.left=ev.clientX+'px'; ghost.style.top=ev.clientY+'px';
+      const t=document.elementFromPoint(ev.clientX,ev.clientY); const sm=t&&t.closest&&t.closest('#sems .sem');
+      if(over&&over!==sm) over.classList.remove('over','bad'); over=sm;
+      if(sm&&sm.dataset.term!==from){ sm.classList.add('over'); sm.classList.toggle('bad',check(code,sm.dataset.term).errs.length>0); }
+      const y=ev.clientY; if(y<70) scrollBy(0,-12); else if(y>innerHeight-70) scrollBy(0,12); };
+    const up=ev=>{ document.removeEventListener('pointermove',mv); document.removeEventListener('pointerup',up); ghost.remove(); row.classList.remove('dragging');
+      if(over) over.classList.remove('over','bad');
+      if(!over||over.dataset.term===from) return;
+      const to=over.dataset.term, r=check(code,to);
+      if(r.errs.length){ over.classList.add('shake'); setTimeout(()=>over.classList.remove('shake'),500); toast('✕ Can\'t move '+code+': '+r.errs[0],true); return; }
+      moveCourse(code,from,to); toast(r.warns.length?'⚠ Moved. '+r.warns[0]:`✓ ${code} moved to ${to}`); };
+    mv(e); document.addEventListener('pointermove',mv); document.addEventListener('pointerup',up);
+  });
+}
+
+
+/* ---------- community college ---------- */
+const POLICY_KB=[
+ {name:'UT Dallas',match:/\b(ut ?dallas|utd|university of texas at dallas)\b/i,allowed:true,minHome:0.25,minHomeLabel:'at least 25% of your degree hours at UT Dallas',noGradSem:true,
+  rules:['Community colleges only teach lower-division (1000–2000 level) classes, so 3000–4000 level requirements have to be taken at UT Dallas.','You cannot take classes off campus in your graduating semester.','At least 25% of the credit hours for your degree must be earned at UT Dallas.','Check the UT Dallas transfer credit tool for the exact equivalent before you enroll.'],
+  sources:[['UTD Registrar: transfer credit evaluation','https://registrar.utdallas.edu/transfer-credit/evaluation'],['UTD residency (25% rule)','https://dox.utdallas.edu/ccrnar1052'],['UTD transfer credit tool','https://transfercredit.utdallas.edu/?p=367']]},
+ {name:'SMU',match:/\b(smu|southern methodist)\b/i,allowed:false,minHome:60,minHomeLabel:'at least 60 SMU credit hours',maxAway:30,
+  rules:['Once you have matriculated at SMU, community college credit is not accepted. Post-matriculation transfer work must be at an accredited four-year college or university.','You must get a petition approved BEFORE enrolling anywhere else, or you have no guarantee of credit.','After matriculating you can transfer a maximum of 30 credit hours.','At least 60 of your credit hours must be SMU hours. Grades below C- do not transfer.'],
+  sources:[['SMU: taking classes elsewhere','https://smu.edu/enrollmentservices/transfer/smustudents'],['SMU Advising Center FAQ','https://www.smu.edu/provost/saes/academic-support/university-advising-center/frequently-asked-questions/other-faq'],['SMU advising policies','https://www.smu.edu/provost/saes/academic-support/university-advising-center/resources/policies-procedures']]},
+ {name:'UT Austin',match:/\b(ut ?austin|university of texas at austin|utexas)\b/i,allowed:true,minHome:60,minHomeLabel:'at least 60 hours in residence at UT Austin',
+  rules:['All programs require at least 60 semester hours in residence at UT Austin, and transfer credit never counts as in-residence.','At least six hours of advanced coursework in your major must be taken in residence.','Some UT Austin programs limit the transfer credit they accept, so check your college before enrolling.','Courses with grades below C- do not transfer, and transfer grades don\'t count in your UT GPA.'],
+  sources:[['UT Austin transfer credit resources','https://admissions.utexas.edu/?p=84'],['UT Austin graduation requirements','https://catalog.utexas.edu/undergraduate/the-university/graduation/general-requirements']]},
+ {name:'Baylor',match:/\bbaylor\b/i,allowed:true,minHome:60,minHomeLabel:'at least 60 hours in residence at Baylor',maxAway:15,maxPerPrefix:2,
+  rules:['After you enroll at Baylor, you can transfer a maximum of 15 semester hours.','No more than 2 courses from any single prefix (like ENG or HIS) after you enroll.','No course at or above the 3000 level may be taken at a community college.','At least 60 semester hours must be earned in residence. Use Baylor\'s Equivalent Course Request before enrolling elsewhere.'],
+  sources:[['Baylor transfer credit policies','https://registrar.web.baylor.edu/transfer-credit-policies'],['Baylor catalog: transfer credit','https://catalog.baylor.edu/undergraduate/general-information/transfer-credit/']]},
+ {name:'TCU',match:/\b(tcu|texas christian)\b/i,allowed:true,minHome:58,minHomeLabel:'at least 58 hours at TCU (42 upper-level)',maxAway:16,
+  rules:['After enrolling at TCU, you can transfer a maximum of 16 semester hours (about 4 courses) from other schools.','You must complete at least 58 credit hours at TCU, with at least 42 at the upper level.','Get approval from your academic dean before taking a course elsewhere.'],
+  sources:[['TCU Neeley advising FAQ','https://sites.google.com/view/neeleyadvising/faqs'],['TCU registrar: transfer credit','https://registrar.tcu.edu/current-students/student-records/transfer-credit-request.php']],verify:true},
+ {name:'Rice',match:/\brice\b/i,allowed:true,minHome:null,minHomeLabel:'Rice\'s residency rules',blockPrefixes:['BIOS','BUSI','CHEM','ECON','ENGL','HIST','PHYS','POLI'],
+  rules:['Several Rice departments (biosciences, business, chemistry, economics, English, history, physics, political science) do not grant Rice-equivalent credit for community college work.','Get prior approval before taking a course elsewhere, or you can\'t be sure the credit will count.','Classes taken elsewhere while enrolled count toward Rice\'s 18-hour semester course load limit.'],
+  sources:[['Rice General Announcements: transfer credit','https://ga.rice.edu/undergraduate-students/academic-policies-procedures/transfer-credit/'],['Rice Thresher on department limits (2019)','https://www.ricethresher.org/article/2019/01/working-group-seeks-to-address-transfer-student-credit']],verify:true},
+ {name:'UNT',match:/\b(unt|university of north texas)\b/i,allowed:true,minHome:0.25,minHomeLabel:'at least 25% of your degree at UNT',
+  rules:['You must complete at least 25% of the required coursework for your degree in residence at UNT.','Community college classes come in as lower-division only, so take upper-division requirements at UNT.','Use UNT\'s transfer guides or Transferology to check the exact equivalent first.'],
+  sources:[['UNT transfer credit (archived)','https://webarchive.library.unt.edu/web/20121127204804/http://www.ci.unt.edu/main/ViewPage.php?cid=240'],['UNT transfer pathways','https://unt.edu/admissions/transfer/transfer-pathways.html']],verify:true},
+ {name:'UT Arlington',match:/\b(ut ?arlington|uta|university of texas at arlington)\b/i,allowed:true,minHome:0.25,minHomeLabel:'at least 25% of your degree at UTA',
+  rules:['All community college courses are accepted as lower-division only.','Typically up to 66 hours of community college credit apply to a degree.','Current students should consult their academic advisor before taking a course at another institution.'],
+  sources:[['UTA admissions FAQ','https://uta.edu/admissions/faqs'],['UTA course equivalency tool','https://www.uta.edu/admissions/apply/transfer/credit/tes']],verify:true},
+ {name:'Texas Tech',match:/\b(texas tech|ttu)\b/i,allowed:true,lastN:30,minHome:30,minHomeLabel:'your last 30 hours at Texas Tech',
+  rules:['A maximum of 80 semester hours from two-year colleges can apply to your degree.','Community college hours can\'t transfer as upper-division work, even if the course numbers look similar.','Your last 30 credit hours must be taken through Texas Tech.'],
+  sources:[['Texas Tech transfer credit guidelines','https://www.depts.ttu.edu/registrar/teo/teo_transferGuidelines.php'],['Texas Tech Common Data Set','https://www.depts.ttu.edu/irim/CDS/2016CDS/CDS-D.php']]},
+ {name:'University of Houston',match:/\b(university of houston|uh)\b(?!.*(clear lake|downtown|victoria))/i,allowed:true,lastN:30,minHome:30,minHomeLabel:'your last 30 hours at UH',
+  rules:['A maximum of 66 hours of lower-division transfer work can apply to a UH degree.','The last 30 semester hours of your degree must be completed in residence at UH.','Engineering students need written approval before taking engineering courses elsewhere, and must take at least 30 engineering hours at UH. Mechanical engineering transfer credit only comes from ABET-accredited ME programs.'],
+  sources:[['UH transfer credit regulations','https://uh.edu/academics/catalog/policies/degree-reqts/transfer credit-gen-regulations/index.php'],['UH engineering transfer policy','https://www.egr.uh.edu/academics/policies/transfer-credit'],['UH ME transfer rules','https://me.egr.uh.edu/undergraduate/departmental-guidance/general-regulations-transfer-course-credit']]}];
+function kbFor(name){ const k=POLICY_KB.find(k=>k.match.test(name||'')); if(k) return k; if(S.customKB&&S.customKB.school===name) return S.customKB; return null; }
+const isUpper=code=>/\b[A-Z]{2,5}\s?[34]\d{3}\b/i.test(code||'')||/\b[34]\dxx\b/i.test(code||'');
+$('#ccgo').onclick=async()=>{
+  err('#errcc',''); const b=$('#ccgo'); const cc=$('#ccname').value.trim()||'a community college'; S.ccName=cc;
+  const kb=kbFor(S.school);
+  if(S.demo&&S.cc){ renderCC(); return; }
+  b.disabled=true; b.textContent='Checking the rules...';
+  try{
+    const planned=(S.plan.semesters||[]).flatMap(x=>(x.courses||[]).map(c=>({code:c.code,title:c.title,term:x.term})));
+    const r=await ai(`A ${S.major} student at ${S.school} wants to take some planned classes at ${cc} instead.
+${kb?'KNOWN POLICY FOR THIS SCHOOL (treat as true): '+kb.rules.join(' '):'Describe this school\'s real policy on current students taking courses at a community college, as precisely as you know it. National patterns to check against: many selective private universities refuse community college credit after enrollment or cap post-enrollment transfer hours; public universities usually accept lower-division community college credit but require a residency minimum (often 25% of hours, 30 hours, or the last 30 hours) and pre-approval. Also use the state transfer system if one applies: Texas Common Course Numbering, California ASSIST (UC/CSU), Florida Statewide Course Numbering, the SUNY/CUNY Seamless Transfer and Pathways policies, Georgia core transfer, the Ohio Transfer Module, Illinois Articulation Initiative, Virginia guaranteed admission agreements, North Carolina CAA, and so on. Mark anything you are unsure of.'}
+Planned courses: ${JSON.stringify(planned)}
+Projected graduation term: ${S.plan.gradTerm||'unknown'}.
+For each planned course decide if it can be taken at ${cc} and still count: only lower-division courses can come from a community college; flag major courses the department expects to be taken at the home school; nothing in the graduating semester if the school forbids it. Give the community college's equivalent course (Texas Common Course Number if Texas).
+Return JSON {"policy":{"allowed":true|false,"summary":"one sentence","rules":["specific rule"],"residencyMin":"e.g. 25% of hours / 60 hours / 30 of last 60"},"courses":[{"code":"","title":"","term":"","eligible":true|false,"ccCode":"","ccTitle":"","reason":"short why / what to check","confidence":"high|verify"}]}`,{json:true,tier:'default'});
+    S.cc=r; save(); renderCC();
+  }catch(e){ err('#errcc',aiErr(e)); }
+  b.disabled=false; b.textContent='Check again ✦';
+};
+function inLastN(term,n){ const sems=(S.plan.semesters||[]).slice().sort((a,b)=>termKey(b.term)-termKey(a.term)); let acc=0; for(const sm of sems){ if(acc>=n) return false; if(sm.term===term) return true; acc+=+semCredits(sm)||0; } return false; }
+function awayChecks(kb){ const all=(S.plan.semesters||[]).flatMap(x=>x.courses||[]).filter(c=>c.at); const hrs=all.reduce((a,c)=>a+(+c.credits||0),0); const out=[];
+  if(kb&&kb.maxAway&&hrs>kb.maxAway) out.push(`That's ${hrs} hours elsewhere, over ${kb.name}'s ${kb.maxAway}-hour limit after enrolling.`);
+  if(kb&&kb.maxPerPrefix){ const cnt={}; all.forEach(c=>{const p=String(c.code).split(/\s/)[0]; cnt[p]=(cnt[p]||0)+1;}); Object.entries(cnt).forEach(([p,n])=>{ if(n>kb.maxPerPrefix) out.push(`${n} ${p} courses elsewhere is over ${kb.name}'s limit of ${kb.maxPerPrefix} per prefix.`); }); }
+  return out; }
+function homeCredits(){ const all=(S.plan.semesters||[]).flatMap(x=>x.courses||[]); const inP=S.courses.filter(c=>c.status!=='transfer').reduce((a,c)=>a+(+c.credits||0),0);
+  const planHome=all.filter(c=>!c.at).reduce((a,c)=>a+(+c.credits||0),0); const away=all.filter(c=>c.at).reduce((a,c)=>a+(+c.credits||0),0); return {home:inP+planHome,away,total:+S.plan.totalCredits||128}; }
+function renderCC(){
+  showPolBox();
+  const kb=kbFor(S.school), r=S.cc||{}, pol=r.policy||{}; const allowed=kb?kb.allowed:pol.allowed!==false; const cc=S.ccName||'community college';
+  const rules=kb?kb.rules:(pol.rules||[]);
+  let h=`<div class="pol ${allowed?'ok':'no'}"><h3>${allowed?'✅ '+esc(kb?kb.name:S.school)+' allows it, with limits':'🚫 '+esc(kb?kb.name:S.school)+' doesn\'t accept community college credit once you\'re enrolled'}</h3>
+   <div class="sub" style="margin:0">${esc(kb?(allowed?'Here are the rules that matter for your plan:':'You can still take approved classes at an accredited four-year university with a petition first.'):(pol.summary||''))}</div>
+   <ul>${rules.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>
+   ${kb&&kb.pasted?'<div class="srcs">Rules read from the policy text you pasted.</div>':kb?`<div class="srcs">${kb.verify?'Some of these rules come from department or secondary pages, so confirm with your registrar. ':''}Sources: ${kb.sources.map(([t,u])=>`<a href="${u.replace(/ /g,'%20')}">${esc(t)}</a>`).join(' · ')}</div>`:'<div class="srcs">Policy summarized by AI. Confirm with your registrar before enrolling anywhere else.</div>'}</div>`;
+  if(allowed){
+    const hc=homeCredits(); const need=kb&&kb.minHome&&kb.minHome<1?Math.ceil(hc.total*kb.minHome):(kb?kb.minHome:null);
+    h+=`<div class="resid"><b>Residency check</b> <span class="sub" style="font-size:.85rem">(${esc(kb?kb.minHomeLabel:(pol.residencyMin||'your school\'s minimum'))})</span>
+     <div class="bar"><i style="width:${Math.min(100,hc.home/hc.total*100)}%"></i></div><small style="color:var(--muted)">${hc.home} of ${hc.total} credits at ${esc(S.school)} · ${hc.away} planned at ${esc(cc)}${need&&hc.home<need?` · <b style="color:var(--c)">below the minimum!</b>`:''}</small>${awayChecks(kb).map(w=>`<div style="color:var(--c);font-size:.85rem;margin-top:6px">⚠ ${esc(w)}</div>`).join('')}</div>`;
+    const grad=S.plan.gradTerm||'';
+    h+=(r.courses||[]).map((c,i)=>{ const cur=findCourse(c.code); let ok=c.eligible&&!isUpper(c.code); let why=c.reason||'';
+      if(isUpper(c.code)){ ok=false; why='Upper-division (3000–4000 level). Community colleges don\'t offer these, so take it at '+S.school+'.'; }
+      const sem=(S.plan.semesters||[]).find(x=>(x.courses||[]).some(y=>y.code===c.code)); const last=(S.plan.semesters||[]).slice(-1)[0];
+      if(ok&&kb&&kb.noGradSem&&sem&&last&&sem.term===last.term){ ok=false; why=`This is in your graduating semester, and ${kb.name} doesn't allow off-campus classes then. Move it earlier first.`; }
+      if(ok&&kb&&kb.lastN&&sem&&inLastN(sem.term,kb.lastN)){ ok=false; why=`This falls in your last ${kb.lastN} hours, which must be taken at ${kb.name}. Move it earlier first.`; }
+      if(ok&&kb&&kb.blockPrefixes&&kb.blockPrefixes.includes(String(c.code).split(/\s/)[0].toUpperCase())){ ok=false; why=`${kb.name}'s ${String(c.code).split(/\s/)[0]} department doesn't give equivalent credit for community college courses.`; }
+      const on=cur&&cur.at;
+      return `<div class="ccrow${ok?'':' no'}" style="animation-delay:${i*40}ms"><div><b>${esc(c.code)}</b> ${esc(c.title||'')} <small>${esc(sem?sem.term:c.term||'')}</small>
+        ${ok&&c.ccCode?`<div class="eq2">↔ ${esc(cc)}: ${esc(c.ccCode)} ${esc(c.ccTitle||'')}${c.confidence==='verify'?' · verify':''}</div>`:''}<small>${esc(why)}</small></div>
+        ${ok?`<button class="tog${on?' on':''}" data-cc="${esc(c.code)}">${on?'✓ At '+esc(cc):'Take it there'}</button>`:'<span class="tag" style="background:rgba(255,61,127,.14);color:#ff8fb3">Not allowed</span>'}</div>`; }).join('');
+  }
+  $('#ccout').innerHTML=h;
+  $$('#ccout .tog').forEach(t=>t.onclick=()=>{ const c=findCourse(t.dataset.cc); if(!c) return; c.at=c.at?null:(S.ccName||'CC');
+    const hc=homeCredits(), kb=kbFor(S.school); const need=kb&&kb.minHome&&kb.minHome<1?Math.ceil(hc.total*kb.minHome):(kb?kb.minHome||0:0);
+    const ac=awayChecks(kb); save(); renderPlanKeepTab(); renderCC(); const bad=c.at&&((need&&hc.home<need)||ac.length); toast(c.at?(ac.length?'⚠ '+ac[0]:need&&hc.home<need?'⚠ That drops you below the residency minimum':`✓ ${c.code} planned at ${c.at}`):`${c.code} back at ${S.school}`, !!bad); });
+}
+if(S.cc&&S.plan) setTimeout(renderCC,0);
+
+
+/* ---------- any-school policy from pasted text ---------- */
+function showPolBox(){ const kbBuilt=POLICY_KB.find(k=>k.match.test(S.school||'')); $('#polbox').style.display=kbBuilt?'none':'block';
+  $('#polfind').href='https://www.google.com/search?q='+encodeURIComponent(`${S.school} current students taking courses at another institution transfer credit policy residency requirement`);
+  if(S.customKB&&S.customKB.school===S.school) $('#poltext').value=S.customKB.raw||''; }
+$('#polgo').onclick=async()=>{
+  err('#errpol',''); const t=$('#poltext').value.trim(); if(t.length<80){ err('#errpol','Paste the policy text first (a paragraph or more).'); return; }
+  const b=$('#polgo'); b.disabled=true; b.textContent='Reading the policy...';
+  try{ const r=await ai(`Extract the rules for CURRENT students at ${S.school} who want to take courses at a community college or another school, using ONLY this official policy text. Do not invent rules that aren't in the text.
+POLICY TEXT:
+${t.slice(0,12000)}
+Return JSON {"allowed":true|false (false only if community college credit is not accepted after enrolling),"rules":["plain-English rule, under 30 words"],"minHome":number of credit hours that must be earned at the school (or a fraction like 0.25 if stated as a percent, or null),"minHomeLabel":"short phrase","lastN":number if the last N hours must be in residence else null,"maxAway":max hours transferable after enrolling else null,"maxPerPrefix":number or null,"noGradSem":true if no outside courses in the final semester,"blockPrefixes":["SUBJECT prefixes whose departments refuse community college credit"],"needsApproval":true|false}`,{json:true,tier:'default'});
+    S.customKB={...r,name:S.school,school:S.school,raw:t,pasted:true,sources:[]}; save(); renderCC(); toast('✓ Using your school\'s policy');
+  }catch(e){ err('#errpol',aiErr(e)); }
+  b.disabled=false; b.textContent='Update policy';
+};
+
+/* ---------- elective picker ---------- */
+S.picks=S.picks||{};
+function toast(t,bad){ const el=$('#toast'); el.textContent=t; el.classList.toggle('bad',!!bad); el.classList.add('on'); clearTimeout(toast._t); toast._t=setTimeout(()=>el.classList.remove('on'),bad?4200:2400); }
+$('#pload').onclick=async()=>{
+  err('#errp',''); const b=$('#pload'); b.disabled=true; b.textContent='Pulling course options...';
+  try{
+    const out=await ai(`You are an academic advisor at ${S.school} who knows its course catalog (${S.cat||S.plan.catalogUsed||'current'} catalog). A ${S.major} student has this plan:
+${JSON.stringify((S.plan.semesters||[]).map(x=>({term:x.term,courses:(x.courses||[]).map(c=>c.code+' '+c.title)})))}
+Courses already taken: ${S.courses.map(c=>c.code).join(', ')}.
+Student interests: ${$('#interests').value.trim()||'not given'}.
+Find EVERY flexible slot in the plan where the student gets to choose: major/technical electives, core curriculum categories (creative arts, social & behavioral science, language/philosophy/culture, government, history, communication), free electives, and any placeholder like "43xx" or "elective". For each slot list 5-8 real courses this school offers that satisfy it, including good options OUTSIDE the major for free electives and core. Rank by fit with the student's interests and major. Only use courses that really satisfy that requirement in this catalog.
+Return JSON {"slots":[{"id":"s1","requirement":"ME technical elective","term":"Fall 2028","credits":3,"placeholder":"exact code from the plan this slot replaces","options":[{"code":"MECH 4370","title":"Robotics","credits":3,"desc":"one line, max 90 chars","offered":"Fall|Spring|Both|Summer","prereqs":"codes or none","prereqsMet":true,"outsideMajor":false,"tags":["fits robotics","popular"]}]}]}`,{json:true,tier:'complex'});
+    S.slots=(out.slots||[]).filter(x=>x&&x.options&&x.options.length); if(!S.slots.length) throw new Error('No open slots came back. Try again.');
+    save(); renderSlots(); toast(`Found ${S.slots.length} slots you get to choose`);
+  }catch(e){ err('#errp',aiErr(e)); }
+  b.disabled=false; b.textContent='Refresh options ✦';
+};
+function renderSlots(){
+  if(!S.slots){ return; }
+  const q=(($('#pfind')&&$('#pfind').value)||'').toLowerCase();
+  const done=S.slots.filter(x=>S.picks[x.id]).length;
+  $('#pbar').style.display='flex';
+  $('#pbar').innerHTML=`<b style="font-family:var(--d);white-space:nowrap">${done}/${S.slots.length} picked</b><div class="bar"><i style="width:${done/S.slots.length*100}%"></i></div><input id="pfind" placeholder="Search classes..." value="${esc(q)}">`;
+  $('#pfind').oninput=()=>{ const v=$('#pfind').value; renderSlots(); const f=$('#pfind'); f.focus(); f.setSelectionRange(v.length,v.length); };
+  $('#slots').innerHTML=S.slots.map((sl,i)=>{ const opts=sl.options.filter(o=>!q||(o.code+' '+o.title+' '+(o.desc||'')+' '+(o.tags||[]).join(' ')).toLowerCase().includes(q)); if(q&&!opts.length) return '';
+    return `<div class="slot${S.picks[sl.id]?' done':''}" id="slot-${esc(sl.id)}" style="animation-delay:${i*60}ms"><h4>${esc(sl.requirement)}<small>${esc(sl.term)} · ${esc(sl.credits)} cr</small></h4>
+    <div class="sm">${S.picks[sl.id]?'✓ Locked into your plan. Tap another to swap.':'Replaces <b>'+esc(sl.placeholder||'an open slot')+'</b> in your plan'}</div>
+    <div class="opts">${opts.map(o=>`<button class="opt${S.picks[sl.id]===o.code?' on':''}${o.prereqsMet===false?' blocked':''}" data-s="${esc(sl.id)}" data-c="${esc(o.code)}"><b>${esc(o.code)}</b><div class="tt">${esc(o.title)}</div><p>${esc(o.desc||'')}</p><div class="tags">${o.outsideMajor?'<span class="out">outside major</span>':''}${o.offered?`<span>${esc(o.offered)}</span>`:''}${o.prereqsMet===false?`<span class="pr">needs ${esc(o.prereqs)}</span>`:''}${(o.tags||[]).slice(0,3).map(t=>`<span>${esc(t)}</span>`).join('')}</div></button>`).join('')}</div></div>`; }).join('');
+  $$('#slots .opt').forEach(o=>o.onclick=()=>pick(o.dataset.s,o.dataset.c));
+  setTimeout(()=>{ const i=$('#pbar .bar i'); if(i) i.style.width=(done/S.slots.length*100)+'%'; },50);
+}
+function pick(sid,code){
+  const sl=S.slots.find(x=>x.id===sid), o=sl&&sl.options.find(x=>x.code===code); if(!o) return;
+  const prev=S.picks[sid]; const oldCode=prev||sl.placeholder; S.picks[sid]=code;
+  // swap into plan semester
+  const sem=(S.plan.semesters||[]).find(x=>x.term===sl.term)||(S.plan.semesters||[]).find(x=>(x.courses||[]).some(c=>c.code===oldCode));
+  if(sem){ let c=(sem.courses||[]).find(c=>c.code===oldCode)||(sem.courses||[]).find(c=>!c._picked&&/xx|elective|core|free/i.test(c.code+' '+c.title));
+    const rep={code:o.code,title:o.title,credits:o.credits||sl.credits,note:sl.requirement,_picked:sid};
+    if(c) Object.assign(c,rep); else (sem.courses=sem.courses||[]).push(rep); }
+  // swap into map
+  if(S.map){ const n=S.map.find(n=>n.code===oldCode&&(!sem||n.term===sem.term))||S.map.find(n=>n._slot===sid); if(n) Object.assign(n,{code:o.code,title:o.title,credits:o.credits||sl.credits,_slot:sid}); }
+  save(); renderPlanKeepTab(); renderSlots(); if(S.map&&$('#mapbox').style.display==='block') drawMap();
+  if(o.prereqsMet===false) toast(`⚠ ${o.code} needs ${o.prereqs} first`); else toast(`✓ ${o.code} added to ${sl.term}`);
+  if(Object.keys(S.picks).length===S.slots.length) confetti();
+}
+function renderPlanKeepTab(){ const t=$('.tab.on').dataset.tab; renderPlan(); $$('.tab').forEach(x=>x.classList.toggle('on',x.dataset.tab===t)); $$('.tp').forEach(x=>x.classList.toggle('on',x.id==='t-'+t)); }
+if(S.slots&&S.plan) renderSlots();
+
+
+
+/* ---------- mascot ---------- */
+const lines=["Hi! I'm Way 👋","I read catalogs for fun 📚","No 3-week email wait ⏳","Let's map your degree 🗺️","Prereqs? I got you ✅"];
+let li=0; setInterval(()=>{ const b=$('#bubble'); if(!b) return; li=(li+1)%lines.length; b.style.opacity=0; setTimeout(()=>{b.textContent=lines[li];b.style.opacity=1},250); },3200);
+$('#bubble').style.transition='opacity .25s';
+function hashColors(name){ let h=0; for(const c of name) h=(h*31+c.charCodeAt(0))>>>0; const a=h%360; return [`hsl(${a} 75% 50%)`,`hsl(${(a+40)%360} 85% 58%)`]; }
+async function schoolBanner(){
+  const name=S.school||'Your school';
+  $('#bnName').innerHTML=[...name].map((ch,i)=>`<span style="animation-delay:${.35+i*.035}s">${ch===' '?'&nbsp;':esc(ch)}</span>`).join('');
+  $('#bnSub').textContent=S.major?S.major+(S.cat?' · '+S.cat+' catalog':''):'';
+  const root=$('#schoolhero'); const apply=(c1,c2)=>{ root.style.setProperty('--pc1',c1); root.style.setProperty('--pc2',c2); };
+  if(S.colors&&S.colors.name===name){ apply(S.colors.c1,S.colors.c2); return; }
+  const [h1,h2]=hashColors(name); apply(h1,h2);
+  try{ const r=await ai(`What are the official school colors of "${name}" (a college or university)? Return JSON {"primary":"#hex","secondary":"#hex","nickname":"short team nickname or empty"}. If unknown, pick two tasteful colors. Return only JSON.`,{json:true,tier:'quick'});
+    if(r&&/^#/.test(r.primary||'')){ S.colors={name,c1:r.primary,c2:r.secondary||r.primary}; apply(S.colors.c1,S.colors.c2); if(r.nickname) $('#bnSub').textContent=`Go ${r.nickname}! · `+(S.major||''); save(); } }catch(e){}
+}
+
+/* ---------- why page ---------- */
+let lastView='v1';
+$('#whylink').onclick=e=>{ e.preventDefault(); lastView=($('.view.on')||{}).id||'v1'; show('vWhy');
+  $$('#vWhy .wst b').forEach(b=>{ const n=+b.dataset.n, t0=performance.now(); const f=x=>{const k=Math.min(1,(x-t0)/1600); b.textContent=(b.dataset.p||'')+Math.round(n*(1-Math.pow(1-k,3))).toLocaleString()+(b.dataset.s||''); if(k<1)requestAnimationFrame(f)}; requestAnimationFrame(f); }); };
+$('#whygo').onclick=()=>show('v1',1);
+$('#whydemo').onclick=()=>$('#demo').click();
+$('.logo').style.cursor='pointer'; $('.logo').onclick=()=>show(S.plan?'v4':'v1',S.plan?4:1);
+
+/* ---------- demo ---------- */
+const DEMO_SLOTS=[
+ {id:'s1',requirement:'ME technical elective',term:'Fall 2028',credits:3,placeholder:'MECH 43xx',options:[
+  {code:'MECH 4370',title:'Robotics',credits:3,desc:'Kinematics, control and programming of robot arms.',offered:'Fall',prereqs:'MECH 3370',prereqsMet:true,tags:['hands-on','popular']},
+  {code:'MECH 4330',title:'Biomechanics',credits:3,desc:'Mechanics of the human body, joints and movement.',offered:'Fall',prereqs:'MECH 3320',prereqsMet:true,tags:['fits sports']},
+  {code:'MECH 4340',title:'Additive Manufacturing',credits:3,desc:'Design for 3D printing, materials and processes.',offered:'Both',prereqs:'MECH 3305',prereqsMet:true,tags:['hands-on']},
+  {code:'MECH 4365',title:'Finite Element Analysis',credits:3,desc:'Simulate stress and heat with FEA software.',offered:'Spring',prereqs:'MECH 3320',prereqsMet:true,tags:['in demand']},
+  {code:'MECH 4380',title:'Mechatronics',credits:3,desc:'Sensors, actuators and microcontrollers in machines.',offered:'Spring',prereqs:'EEMF 2320',prereqsMet:true,tags:['hands-on']}]},
+ {id:'s2',requirement:'ME technical elective',term:'Spring 2029',credits:3,placeholder:'MECH 43xx',options:[
+  {code:'MECH 4365',title:'Finite Element Analysis',credits:3,desc:'Simulate stress and heat with FEA software.',offered:'Spring',prereqs:'MECH 3320',prereqsMet:true,tags:['in demand']},
+  {code:'MECH 4320',title:'Composite Materials',credits:3,desc:'Carbon fiber and composites used in sports gear.',offered:'Spring',prereqs:'MECH 3320',prereqsMet:true,tags:['fits sports']},
+  {code:'MECH 4385',title:'Renewable Energy Systems',credits:3,desc:'Solar, wind and storage design basics.',offered:'Spring',prereqs:'MECH 3350',prereqsMet:true,tags:['growing field']},
+  {code:'BMEN 4310',title:'Medical Device Design',credits:3,desc:'Design and regulation of medical devices.',offered:'Spring',prereqs:'none',prereqsMet:true,outsideMajor:true,tags:['fits MedVision']}]},
+ {id:'s3',requirement:'Creative arts core',term:'Spring 2029',credits:3,placeholder:'ARTS 1301',options:[
+  {code:'ARTS 1301',title:'Exploration of the Arts',credits:3,desc:'Survey of visual and performing arts.',offered:'Both',prereqs:'none',prereqsMet:true,outsideMajor:true,tags:['easy A']},
+  {code:'FILM 2332',title:'Understanding Film',credits:3,desc:'How movies are made and read.',offered:'Both',prereqs:'none',prereqsMet:true,outsideMajor:true,tags:['fun']},
+  {code:'MUSI 1306',title:'Music Appreciation',credits:3,desc:'Listening to music across eras.',offered:'Both',prereqs:'none',prereqsMet:true,outsideMajor:true,tags:['online option']},
+  {code:'ATCM 2340',title:'Digital Design Fundamentals',credits:3,desc:'Design tools and visual storytelling.',offered:'Both',prereqs:'none',prereqsMet:true,outsideMajor:true,tags:['fits app building']}]},
+ {id:'s4',requirement:'Social & behavioral science core',term:'Summer 2027',credits:3,placeholder:'ECON 2301',options:[
+  {code:'ECON 2301',title:'Principles of Macroeconomics',credits:3,desc:'Economy-wide growth, inflation and policy.',offered:'Both',prereqs:'none',prereqsMet:true,outsideMajor:true,tags:['summer']},
+  {code:'ECON 2302',title:'Principles of Microeconomics',credits:3,desc:'Markets, pricing and business decisions.',offered:'Both',prereqs:'none',prereqsMet:true,outsideMajor:true,tags:['fits business']},
+  {code:'PSY 2301',title:'Introduction to Psychology',credits:3,desc:'How people think, learn and behave.',offered:'Both',prereqs:'none',prereqsMet:true,outsideMajor:true,tags:['popular']},
+  {code:'ENTP 3301',title:'Entrepreneurship',credits:3,desc:'Start and pitch a business idea.',offered:'Both',prereqs:'none',prereqsMet:true,outsideMajor:true,tags:['fits founders']}]}];
+const DEMO={school:'UT Dallas',major:'Mechanical Engineering',minor:'',term:'Fall 2026',cat:'2025–2026',demo:true,
+ courses:[{code:'MATH 2413',title:'Calculus I',credits:4,grade:null,term:null,status:'transfer'},{code:'MATH 2414',title:'Calculus II',credits:4,grade:'A',term:'Fall 2025',status:'completed'},{code:'PHYS 2325',title:'Mechanics',credits:3,grade:'A-',term:'Fall 2025',status:'completed'},{code:'CHEM 1311',title:'General Chemistry I',credits:3,grade:'B+',term:'Fall 2025',status:'completed'},{code:'MATH 2415',title:'Calculus III',credits:4,grade:'A',term:'Spring 2026',status:'transfer'},{code:'MECH 1208',title:'Intro to Mechanical Engineering',credits:2,grade:'A',term:'Spring 2026',status:'completed'},{code:'MECH 2310',title:'Statics',credits:3,grade:null,term:'Fall 2026',status:'in_progress'},{code:'CS 2336',title:'Computer Science II',credits:3,grade:null,term:'Fall 2026',status:'in_progress'},{code:'BMEN 1300',title:'Intro to Biomedical Engineering Computing',credits:3,grade:'A',term:'Spring 2026',status:'completed'}],
+ plan:{title:'On track for May 2029',summary:'You have 27 credits done and 6 in progress. Keep Dynamics and Thermo together in spring and you stay on pace for May 2029 with one light summer.',totalCredits:128,creditsDone:27,creditsInProgress:6,percent:26,gradTerm:'May 2029',
+  requirements:[{group:'Math',items:[{code:'MATH 2413',title:'Calculus I',status:'done'},{code:'MATH 2414',title:'Calculus II',status:'done'},{code:'MATH 2415',title:'Calculus III',status:'done'},{code:'MATH 2420',title:'Differential Equations',status:'remaining'}]},{group:'Science',items:[{code:'PHYS 2325',title:'Mechanics',status:'done'},{code:'PHYS 2326',title:'Electromagnetism',status:'remaining'},{code:'CHEM 1311',title:'General Chemistry I',status:'done'}]},{group:'Engineering core',items:[{code:'MECH 2310',title:'Statics',status:'in_progress'},{code:'CS 2336',title:'Computer Science II',status:'in_progress'},{code:'MECH 2320',title:'Dynamics',status:'remaining'},{code:'EEMF 2320',title:'Circuits',status:'remaining'}]},{group:'Mechanical major',items:[{code:'MECH 1208',title:'Intro to ME',status:'done'},{code:'MECH 2330',title:'Thermodynamics',status:'remaining'},{code:'MECH 3315',title:'Fluid Mechanics',status:'remaining'},{code:'MECH 3320',title:'Mechanics of Materials',status:'remaining'},{code:'MECH 3350',title:'Heat Transfer',status:'remaining'},{code:'MECH 4381',title:'Senior Design I',status:'remaining'},{code:'MECH 4382',title:'Senior Design II',status:'remaining'}]}],
+  semesters:[{term:'Spring 2027',credits:16,courses:[{code:'MECH 2320',title:'Dynamics',credits:3,note:'Needs Statics (this fall)'},{code:'MECH 2330',title:'Thermodynamics',credits:3},{code:'MATH 2420',title:'Differential Equations',credits:3},{code:'PHYS 2326',title:'Electromagnetism',credits:3},{code:'GOVT 2305',title:'American Government',credits:3}]},{term:'Summer 2027',credits:6,courses:[{code:'ECON 2301',title:'Macroeconomics',credits:3,note:'Light summer keeps fall manageable'},{code:'HIST 1301',title:'U.S. History I',credits:3}]},{term:'Fall 2027',credits:15,courses:[{code:'MECH 3315',title:'Fluid Mechanics',credits:3},{code:'MECH 3320',title:'Mechanics of Materials',credits:3},{code:'EEMF 2320',title:'Circuits',credits:3},{code:'MECH 3305',title:'Computer-Aided Design',credits:3},{code:'ENGR 3341',title:'Probability & Statistics',credits:3}]},{term:'Spring 2028',credits:15,courses:[{code:'MECH 3350',title:'Heat Transfer',credits:3},{code:'MECH 3360',title:'Machine Design',credits:3},{code:'MECH 3370',title:'Vibrations',credits:3},{code:'MECH 3105',title:'ME Lab',credits:1},{code:'RHET 1302',title:'Rhetoric',credits:3}]},{term:'Fall 2028',credits:15,courses:[{code:'MECH 4381',title:'Senior Design I',credits:3,note:'Fall start only'},{code:'MECH 4310',title:'Controls',credits:3},{code:'MECH 43xx',title:'ME technical elective',credits:3},{code:'HIST 1302',title:'U.S. History II',credits:3}]},{term:'Spring 2029',credits:13,courses:[{code:'MECH 4382',title:'Senior Design II',credits:3},{code:'MECH 43xx',title:'ME technical elective',credits:3},{code:'GOVT 2306',title:'Texas Government',credits:3},{code:'ARTS 1301',title:'Creative arts core',credits:3}]}],
+  warnings:[{level:'high',text:'Senior Design I only starts in fall. Missing Fall 2028 pushes graduation a full year.'},{level:'med',text:'Spring 2027 has Dynamics, Thermo and Diff Eq together. Keep your other classes light that term.'},{level:'info',text:'Confirm your Dallas College Calc III transfer shows up as MATH 2415 on your degree audit.'}],
+  recommendations:['Take Differential Equations by Spring 2027; it unlocks Vibrations and Controls.','Use Summer 2027 for core classes so you can intern Summer 2028.'],
+  confidence:'This is a sample plan for the demo.',catalogUsed:'2025–2026 UTD undergraduate catalog (first term Fall 2025)',equivalences:[{taken:'MATH 2415 Calculus III (Dallas College)',countsAs:'MATH 2415 Calculus III',why:'Texas common course transfer equivalent',confidence:'high'},{taken:'MATH 2413 Calculus I (AP Calculus BC)',countsAs:'MATH 2413 Calculus I',why:'AP credit, score 4+',confidence:'verify'},{taken:'BMEN 1300 Intro to Biomedical Engineering Computing',countsAs:'Free elective (3 cr), or CS 1325 Introduction to Programming by petition',why:'The ME catalog lists only CS 1325 for programming. BMEN 1300 covers the same C++/MATLAB basics, so petition to substitute it and save 3 credits.',confidence:'verify'}],unused:[{course:'CS 2336 Computer Science II',why:'Not part of the ME degree plan. It can fill a free elective only if BMEN 1300 does not; ask about using it toward a CS minor.'}],equivalences_:[],catalogChanges:['The 2026–2027 catalog renames Intro to ME and moves it to fall only. You already took it, so staying on 2025–2026 keeps it counted cleanly.','Switching catalogs would not shorten your plan; stay on 2025–2026.'],meetingNotes:'DEMO MEETING NOTES\n\nStatus: 27 credits completed, 6 in progress (Statics, CS II). Projected graduation May 2029.\n\nPlan: Spring 2027 Dynamics, Thermo, Diff Eq, E&M, Gov. Summer 2027 Macro + History. Fall 2027 Fluids, Mech of Materials, Circuits, CAD, Stats. Spring 2028 Heat Transfer, Machine Design, Vibrations, Lab. Fall 2028 Senior Design I, Controls. Spring 2029 Senior Design II, electives.\n\nQuestions for my advisor:\n1. Is my Calc III transfer applied?\n2. Which technical electives fit a robotics focus?\n3. Can I take Circuits earlier?'},
+ map:null};
+const DEMO_CC={policy:{allowed:true},courses:[{code:'MATH 2420',title:'Differential Equations',eligible:true,ccCode:'MATH 2320',ccTitle:'Differential Equations',reason:'Common transfer course. Confirm in the UTD transfer credit tool.',confidence:'verify'},{code:'PHYS 2326',title:'Electromagnetism',eligible:true,ccCode:'PHYS 2426',ccTitle:'University Physics II (with lab)',reason:'Usually covers PHYS 2326 + lab PHYS 2126.',confidence:'verify'},{code:'GOVT 2305',title:'American Government',eligible:true,ccCode:'GOVT 2305',ccTitle:'Federal Government',reason:'Core curriculum, same number statewide.',confidence:'high'},{code:'ECON 2301',title:'Macroeconomics',eligible:true,ccCode:'ECON 2301',ccTitle:'Principles of Macroeconomics',reason:'Core curriculum.',confidence:'high'},{code:'HIST 1301',title:'U.S. History I',eligible:true,ccCode:'HIST 1301',ccTitle:'United States History I',reason:'Core curriculum.',confidence:'high'},{code:'MECH 2320',title:'Dynamics',eligible:true,ccCode:'ENGR 2302',ccTitle:'Engineering Mechanics: Dynamics',reason:'Some engineering departments want this taken at UTD. Ask before you enroll.',confidence:'verify'},{code:'MECH 3315',title:'Fluid Mechanics',eligible:false,reason:''},{code:'GOVT 2306',title:'Texas Government',eligible:true,ccCode:'GOVT 2306',ccTitle:'Texas Government',reason:'Core curriculum.',confidence:'high'},{code:'MECH 4382',title:'Senior Design II',eligible:false,reason:''}]};
+const DEMO_INFO={'MECH 2320':{prereqs:['MECH 2310'],offered:'Both'},'MECH 2330':{prereqs:['MATH 2415','CHEM 1311'],offered:'Both'},'MATH 2420':{prereqs:['MATH 2415'],offered:'All'},'PHYS 2326':{prereqs:['PHYS 2325'],offered:'All'},'MECH 3315':{prereqs:['MECH 2330','MECH 2320'],offered:'Both'},'MECH 3320':{prereqs:['MECH 2310'],offered:'Both'},'EEMF 2320':{prereqs:['PHYS 2326'],offered:'Both'},'MECH 3305':{prereqs:['MECH 1208'],offered:'Both'},'MECH 3350':{prereqs:['MECH 3315'],offered:'Spring'},'MECH 3360':{prereqs:['MECH 3320'],offered:'Spring'},'MECH 3370':{prereqs:['MECH 2320','MATH 2420'],offered:'Spring'},'MECH 4381':{prereqs:['MECH 3360'],offered:'Fall'},'MECH 4310':{prereqs:['MECH 3370'],offered:'Fall'},'MECH 4382':{prereqs:['MECH 4381'],offered:'Spring'}};
+$('#demo').onclick=()=>{ const d=JSON.parse(JSON.stringify(DEMO)); Object.assign(S,d,{cc:JSON.parse(JSON.stringify(DEMO_CC)),ccName:'Dallas College',info:JSON.parse(JSON.stringify(DEMO_INFO)),chat:[],questions:[],answers:{},picks:{},slots:JSON.parse(JSON.stringify(DEMO_SLOTS))});
+  S.map=[...d.courses.map(c=>({code:c.code,title:c.title,credits:c.credits,term:c.status==='transfer'&&!c.term?'Transfer/AP':c.term,category:/MATH/.test(c.code)?'Math':/PHYS|CHEM/.test(c.code)?'Science':/MECH/.test(c.code)?'Mechanical major':'Engineering core',status:c.status==='in_progress'?'in_progress':'done',prereqs:{"MATH 2414":["MATH 2413"],"PHYS 2325":["MATH 2413"],"MATH 2415":["MATH 2414"],"MECH 2310":["PHYS 2325","MATH 2414"]}[c.code]||[]})),
+   ...d.plan.semesters.flatMap(sm=>sm.courses.map(c=>({code:c.code,title:c.title,credits:c.credits,term:sm.term,category:/MATH|ENGR 3341/.test(c.code)?'Math':/PHYS/.test(c.code)?'Science':/MECH/.test(c.code)?'Mechanical major':/EEMF/.test(c.code)?'Engineering core':'Core curriculum',status:'planned',prereqs:{"MECH 2320":["MECH 2310"],"MECH 2330":["MATH 2415","CHEM 1311"],"MATH 2420":["MATH 2415"],"PHYS 2326":["PHYS 2325"],"MECH 3315":["MECH 2330","MECH 2320"],"MECH 3320":["MECH 2310"],"MECH 3350":["MECH 3315"],"MECH 3360":["MECH 3320"],"MECH 3370":["MECH 2320","MATH 2420"],"MECH 4381":["MECH 3360"],"MECH 4310":["MECH 3370"],"MECH 4382":["MECH 4381"],"EEMF 2320":["PHYS 2326"]}[c.code]||[]})))].filter((n,i,a)=>a.findIndex(x=>x.code===n.code&&x.term===n.term)===i);
+  $('#school').value=S.school;$('#major').value=S.major;$('#term').value=S.term;$('#cat').value=S.cat;
+  renderPlan(); show('v4',4); drawMap(); renderSlots(); renderCC(); confetti(); };
+
+/* ---------- full plan PDF ---------- */
+$('#dlplan').onclick=async()=>{
+  const btn=$('#dlplan'); if(!window.jspdf){btn.textContent='PDF tool did not load';return}
+  const p=S.plan, doc=new jspdf.jsPDF({unit:'pt',format:'letter'}); const W=612,M=48; let y=0;
+  const head=()=>{ doc.setFillColor(124,92,255); doc.rect(0,0,W,6,'F'); };
+  const need=h=>{ if(y+h>744){ doc.addPage(); head(); y=56; } };
+  head(); y=64; doc.setFont('helvetica','bold'); doc.setFontSize(22); doc.setTextColor(20); doc.text(`${S.school} · ${S.major}`,M,y);
+  y+=20; doc.setFont('helvetica','normal'); doc.setFontSize(11); doc.setTextColor(90); doc.text(`Degree plan by Waypoint · projected graduation ${p.gradTerm||'—'} · ${Math.round(p.percent||0)}% complete`,M,y);
+  y+=22; doc.setTextColor(30); const sum=doc.splitTextToSize(p.summary||'',W-2*M); doc.text(sum,M,y); y+=sum.length*14+10;
+  (p.semesters||[]).forEach(sm=>{ need(40+(sm.courses||[]).length*16); doc.setFillColor(243,245,250); doc.roundedRect(M,y,W-2*M,22,4,4,'F'); doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(20); doc.text(sm.term,M+10,y+15); doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(110); doc.text(`${sm.credits??''} credits`,W-M-10,y+15,{align:'right'}); y+=32;
+    (sm.courses||[]).forEach(c=>{ doc.setFont('helvetica','bold'); doc.setFontSize(10.5); doc.setTextColor(60,40,200); doc.text(String(c.code||''),M+10,y); doc.setFont('helvetica','normal'); doc.setTextColor(30); doc.text(String(c.title||''),M+90,y); doc.setTextColor(120); doc.text(String(c.credits??''),W-M-10,y,{align:'right'}); if(c.note){ y+=12; doc.setFontSize(9); doc.setTextColor(170,120,0); doc.text(String(c.note),M+90,y);} y+=16; }); y+=6; });
+  if((p.warnings||[]).length){ need(40); doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(20); doc.text('Heads up',M,y); y+=16; doc.setFont('helvetica','normal'); doc.setFontSize(10.5);
+    p.warnings.forEach(w=>{ const t=doc.splitTextToSize('• '+w.text,W-2*M); need(t.length*14); doc.setTextColor(w.level==='high'?190:60,w.level==='high'?30:60,60); doc.text(t,M,y); y+=t.length*14+4; }); }
+  need(30); y+=8; doc.setFontSize(9); doc.setTextColor(130); doc.text(doc.splitTextToSize('Generated by Waypoint from AI knowledge of the school catalog. Confirm with your official degree audit and advisor.',W-2*M),M,y);
+  saveFile('degree-plan.pdf',doc.output('blob'),btn,'Download full plan (PDF)');
+};
+
+/* restore previous session */
+(function(){ try{ const d=JSON.parse(localStorage.getItem('waypoint')||'null'); if(!d) return; Object.assign(S,d);
+  $('#school').value=S.school||''; $('#major').value=S.major||''; $('#minor').value=S.minor||''; $('#term').value=S.term||''; $('#cat').value=S.cat||'';
+  if(S.plan){ renderPlan(); show('v4',4); if(S.map) drawMap(); } }catch(e){} })();
+</script>
+</body>
+</html>
