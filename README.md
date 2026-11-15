@@ -1,9 +1,12 @@
-# Waypoint — AI Academic Advisor
+# Waypoint
 
-Static site + one Netlify Edge Function (`netlify/edge-functions/ai.js`) that calls the Anthropic API.
+Academic advising interface with a static frontend and a Netlify Edge Function that calls the Anthropic API.
 
-Setup:
-1. Push this folder to a GitHub repo.
-2. Netlify → Add new project → Import from GitHub → pick the repo → Deploy.
-3. Netlify → Project configuration → Environment variables → add `ANTHROPIC_API_KEY`.
-4. Redeploy, then add the custom domain `waypointadvisor.app` under Domain management.
+## Deployment
+
+1. Connect the repository to a Netlify project.
+2. Set `ANTHROPIC_API_KEY` in the project's environment configuration.
+3. Deploy the site and verify the advising request flow.
+4. Configure `waypointadvisor.app` in Netlify's domain settings when ready.
+
+The server-side integration is in `netlify/edge-functions/ai.js`. Keep API credentials in the hosting environment rather than frontend files or version control.
