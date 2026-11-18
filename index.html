@@ -332,7 +332,7 @@ h1 .serif,h2 .serif{padding-right:.06em}
 <div class="wrap">
 <header class="top"><style>.whyl{margin-left:auto;margin-right:16px;color:var(--muted);font-size:.88rem;text-decoration:none;border-bottom:1px dashed rgba(255,255,255,.25)}.whyl:hover{color:var(--ink)}@media(max-width:480px){.whyl{font-size:.78rem;margin-right:10px}}</style>
   <div class="logo"><div class="mark">◆</div>waypoint</div>
-  <a href="#" id="whylink" class="whyl">Why I built this</a>
+  <a href="#why" id="whylink" class="whyl">Why I built this</a>
   <div class="steps" id="steps"><i class="on"></i><i></i><i></i><i></i></div>
 </header>
 
@@ -1193,6 +1193,7 @@ let lastView='v1';
 $('#whylink').onclick=e=>{ e.preventDefault(); lastView=($('.view.on')||{}).id||'v1'; show('vWhy');
   $$('#vWhy .wst b').forEach(b=>{ const n=+b.dataset.n, t0=performance.now(); const f=x=>{const k=Math.min(1,(x-t0)/1600); b.textContent=(b.dataset.p||'')+Math.round(n*(1-Math.pow(1-k,3))).toLocaleString()+(b.dataset.s||''); if(k<1)requestAnimationFrame(f)}; requestAnimationFrame(f); }); };
 $('#whygo').onclick=()=>show('v1',1);
+if(location.hash==='#why') setTimeout(()=>$('#whylink').click(),0); // shareable link to the story page
 $('#whydemo').onclick=()=>$('#demo').click();
 $('.logo').style.cursor='pointer'; $('.logo').onclick=()=>show(S.plan?'v4':'v1',S.plan?4:1);
 
