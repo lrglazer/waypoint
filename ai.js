@@ -4,6 +4,8 @@ const hits = new Map(); // simple per-instance rate limit
 
 export default async (req, context) => {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
+  // AI is switched off for now (no API calls). Set AI_ENABLED=1 in Netlify to turn it back on.
+  if (Netlify.env.get("AI_ENABLED") !== "1") return new Response("Coming soon!", { status: 503, headers: { "content-type": "text/plain" } });
   const key = Netlify.env.get("ANTHROPIC_API_KEY");
   if (!key) return new Response("Server is missing ANTHROPIC_API_KEY", { status: 500 });
 
